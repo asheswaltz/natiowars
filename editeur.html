@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Nation Wars — Éditeur de niveaux</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e; color: #e0e0e0;
+    font-family: 'Segoe UI', 'Segoe UI Emoji', Tahoma, sans-serif;
+    display: flex; height: 100vh; overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── SIDEBAR ─── */
+  #sidebar {
+    width: 290px; min-width: 290px;
+    background: #16213e; border-right: 2px solid #0f3460;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  #sidebar h2 {
+    text-align: center; padding: 14px; font-size: 16px;
+    background: #0f3460; color: #e94560;
+    letter-spacing: 1px;
+  }
+  #sidebar section {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  #sidebar section h3 {
+    font-size: 11px; text-transform: uppercase;
+    color: #e94560; margin-bottom: 8px; letter-spacing: 1px;
+  }
+  #zone-list {
+    list-style: none; display: flex; flex-direction: column; gap: 3px;
+  }
+  #zone-list li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 4px; cursor: pointer;
+    font-size: 13px; transition: background 0.15s;
+  }
+  #zone-list li:hover { background: rgba(255,255,255,0.06); }
+  #zone-list li.active { background: rgba(233,69,96,0.2); outline: 1px solid #e94560; }
+  .zone-dot {
+    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  }
+  .zone-pts {
+    font-size: 10px; color: #888; margin-left: auto;
+  }
+
+  .btn {
+    display: block; width: 100%; padding: 8px;
+    border: none; border-radius: 5px; cursor: pointer;
+    font-size: 13px; font-weight: 600; transition: 0.15s;
+    margin-top: 6px;
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .btn-new   { background: #0f3460; color: #5dade2; }
+  .btn-draw  { background: #27ae60; color: #fff; }
+  .btn-draw.active { background: #e94560; }
+  .btn-wand  { background: #8e44ad; color: #fff; }
+  .btn-wand.active { background: #e94560; }
+  .btn-undo  { background: #444; color: #ccc; }
+  .btn-del   { background: #7f1d1d; color: #fca5a5; }
+  .btn-save  { background: #e94560; color: #fff; font-size: 15px; padding: 12px; }
+  .btn-quick-save { background: #27ae60; color: #fff; font-size: 15px; padding: 12px; }
+  .btn-quick-save:disabled { background: #555; color: #888; cursor: not-allowed; filter: none; }
+  .btn-pick-dir { background: #0f3460; color: #5dade2; font-size: 13px; }
+  .save-dir-info { font-size: 11px; color: #888; margin-top: 2px; word-break: break-all; }
+  .save-dir-info strong { color: #5dade2; }
+
+  /* Properties */
+  .prop-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 6px; font-size: 12px;
+  }
+  .prop-row label { width: 60px; color: #aaa; flex-shrink: 0; }
+  .prop-row input, .prop-row select {
+    flex: 1; padding: 4px 6px; border-radius: 3px;
+    border: 1px solid #333; background: #1a1a2e; color: #e0e0e0;
+    font-size: 12px;
+  }
+
+  /* ─── MAIN ─── */
+  #main {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #111;
+  }
+  #editorCanvas {
+    border: 2px solid #0f3460; cursor: crosshair;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+  #status-bar {
+    height: 28px; width: 900px;
+    background: #0f3460; color: #aaa;
+    display: flex; align-items: center; padding: 0 12px;
+    font-size: 11px; gap: 20px;
+  }
+  #status-bar span { color: #5dade2; }
+
+  /* ─── MODAL ─── */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    justify-content: center; align-items: center;
+    z-index: 1000;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal {
+    background: #16213e; border-radius: 10px;
+    padding: 20px; width: 750px; max-height: 85vh;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #modal h3 { color: #e94560; }
+  #modal textarea {
+    width: 100%; height: 260px; background: #0d1117;
+    color: #7ee787; border: 1px solid #333; border-radius: 5px;
+    font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px;
+    padding: 10px; resize: vertical;
+  }
+  #modal .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  #modal .btn-row .btn { width: auto; padding: 10px 20px; }
+  .btn-copy { background: #27ae60; color: #fff; }
+  .btn-close { background: #444; color: #ccc; }
+  .btn-dl { background: #0f3460; color: #5dade2; }
+  /* Modal tabs */
+  .modal-tabs { display: flex; gap: 0; margin-bottom: 4px; }
+  .modal-tab {
+    padding: 8px 18px; background: #0d1117; color: #888;
+    border: 1px solid #333; border-bottom: none;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    border-radius: 6px 6px 0 0; transition: 0.15s;
+  }
+  .modal-tab.active { background: #1a2744; color: #5dade2; border-color: #5dade2; }
+  .modal-tab:hover { color: #5dade2; }
+  .modal-panel { display: none; }
+  .modal-panel.active { display: block; }
+
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #27ae60; color: #fff; padding: 10px 24px;
+    border-radius: 6px; font-size: 14px; font-weight: 600;
+    z-index: 2000; opacity: 0; transition: opacity 0.3s;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ─── REORDER MODAL ─── */
+  #reorder-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    justify-content: center; align-items: center;
+    z-index: 1000;
+  }
+  #reorder-overlay.show { display: flex; }
+  #reorder-modal {
+    background: #16213e; border-radius: 10px;
+    padding: 20px; width: 500px; max-height: 85vh;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #reorder-modal h3 { color: #e94560; }
+  #reorder-list {
+    list-style: none; overflow-y: auto; max-height: 55vh;
+    display: flex; flex-direction: column; gap: 4px; padding: 0;
+  }
+  #reorder-list li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px;
+    background: #1a1a2e; border: 1px solid #333;
+    cursor: grab; font-size: 13px; color: #e0e0e0;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  #reorder-list li:active { cursor: grabbing; }
+  #reorder-list li.drag-over {
+    border-color: #e94560; background: rgba(233,69,96,0.15);
+  }
+  #reorder-list li .reorder-handle {
+    color: #555; font-size: 16px; flex-shrink: 0; cursor: grab;
+  }
+  #reorder-list li .reorder-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #0f3460; color: #5dade2;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 12px; flex-shrink: 0;
+  }
+  #reorder-list li .reorder-title { flex: 1; }
+  #reorder-list li .reorder-del {
+    background: none; border: none; color: #7f1d1d; font-size: 16px;
+    cursor: pointer; flex-shrink: 0; padding: 2px 6px;
+    border-radius: 4px; transition: background 0.15s, color 0.15s;
+    line-height: 1;
+  }
+  #reorder-list li .reorder-del:hover { background: rgba(233,69,96,0.2); color: #e94560; }
+  .btn-reorder { background: #8e44ad; color: #fff; }
+  .btn-confirm-reorder { background: #e94560; color: #fff; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<div id="sidebar">
+  <h2>⚔ ÉDITEUR DE NIVEAUX</h2>
+
+  <section>
+    <h3>🎮 Niveau</h3>
+    <div class="prop-row">
+      <label>Niveau :</label>
+      <select id="level-select" onchange="onLevelSelectChange()" style="flex:1"></select>
+    </div>
+    <button class="btn btn-new" onclick="duplicateLevel()">📋 Dupliquer ce niveau</button>
+    <button class="btn btn-reorder" onclick="openReorderModal()">↕ Réorganiser les niveaux</button>
+    <div class="prop-row" style="margin-top:8px">
+      <label>Titre :</label>
+      <input type="text" id="level-title" oninput="onLevelTitleChange()" style="flex:1">
+    </div>
+  </section>
+
+  <section>
+    <h3>🤖 Difficulté IA</h3>
+    <div class="prop-row">
+      <label>Configurer :</label>
+      <select id="ai-select" onchange="onAiSelectChange()" style="flex:1">
+        <option value="1" style="color:#c0392b">🔴 IA 1</option>
+        <option value="2" style="color:#8e44ad">🟣 IA 2</option>
+        <option value="3" style="color:#e67e22">🟠 IA 3</option>
+        <option value="4" style="color:#27ae60">🟢 IA 4</option>
+      </select>
+    </div>
+    <div class="prop-row">
+      <label>Preset :</label>
+      <select id="ai-difficulty" onchange="onAiDifficultyChange()" style="flex:1">
+        <option value="tres_facile">⭐ Très facile (N1–5)</option>
+        <option value="facile">⭐⭐ Facile (N6–10)</option>
+        <option value="moyen">⭐⭐⭐ Moyen (N11–15)</option>
+        <option value="difficile">⭐⭐⭐⭐ Difficile (N16–20)</option>
+      </select>
+    </div>
+    <div class="prop-row"><label style="width:100px">Think (s) :</label><input type="number" id="ai-think" step="0.1" min="0.1" max="5" value="1.2" oninput="onAiParamChange()" style="flex:1"></div>
+    <div class="prop-row"><label style="width:100px">Min unités :</label><input type="number" id="ai-min-units" min="1" max="50" value="12" oninput="onAiParamChange()" style="flex:1"></div>
+    <div class="prop-row"><label style="width:100px">Focus joueur :</label><input type="number" id="ai-focus" step="0.1" min="0" max="1" value="0.6" oninput="onAiParamChange()" style="flex:1"></div>
+    <div style="font-size:10px;color:#666;margin-top:4px;line-height:1.4" id="ai-desc"></div>
+  </section>
+
+  <section>
+    <h3>📂 Fond de carte</h3>
+    <div class="prop-row">
+      <label>Fichier :</label>
+      <input type="text" id="svg-input" value="img/Lvl1.svg" style="flex:1">
+      <button class="btn btn-new" style="width:auto;margin:0;padding:4px 8px" onclick="loadSvg()">OK</button>
+    </div>
+    <div class="prop-row">
+      <label style="font-size:10px;color:#888">🪄 :</label>
+      <input type="file" id="svg-file" accept="image/*,.svg" style="flex:1;font-size:11px;color:#aaa" onchange="loadSvgFromFile(this)">
+    </div>
+    <div style="font-size:10px;color:#666;line-height:1.3">Utilisez le sélecteur de fichier pour activer la baguette magique en local.</div>
+  </section>
+
+  <section>
+    <h3>🚀 Vitesse des troupes</h3>
+    <div class="prop-row"><label style="width:100px">Vitesse :</label><input type="number" id="travel-speed" min="20" max="500" step="5" value="125" oninput="onTravelSpeedChange()" style="flex:1"><span style="font-size:10px;color:#666;margin-left:4px">px/s</span></div>
+    <div style="font-size:10px;color:#666;margin-top:4px;line-height:1.4">Vitesse de déplacement des unités (défaut : 125 px/s). Plus la valeur est élevée, plus les troupes sont rapides.</div>
+  </section>
+
+  <section>
+    <h3>🏅 Grades (seuils en secondes)</h3>
+    <div class="prop-row"><label style="width:30px;color:#f1c40f;font-weight:bold">S :</label><input type="number" id="grade-s" min="1" max="600" value="30" oninput="onGradeChange()" style="flex:1"><span style="font-size:10px;color:#666;margin-left:4px">s</span></div>
+    <div class="prop-row"><label style="width:30px;color:#2ecc71;font-weight:bold">A :</label><input type="number" id="grade-a" min="1" max="600" value="60" oninput="onGradeChange()" style="flex:1"><span style="font-size:10px;color:#666;margin-left:4px">s</span></div>
+    <div class="prop-row"><label style="width:30px;color:#3498db;font-weight:bold">B :</label><input type="number" id="grade-b" min="1" max="600" value="90" oninput="onGradeChange()" style="flex:1"><span style="font-size:10px;color:#666;margin-left:4px">s</span></div>
+    <div class="prop-row"><label style="width:30px;color:#9b59b6;font-weight:bold">C :</label><input type="number" id="grade-c" min="1" max="600" value="120" oninput="onGradeChange()" style="flex:1"><span style="font-size:10px;color:#666;margin-left:4px">s</span></div>
+    <div style="font-size:10px;color:#666;margin-top:4px;line-height:1.4">Au-dessus de C → Grade D. Le grade S ×2 consécutifs saute un niveau.</div>
+  </section>
+
+  <section>
+    <h3>🏳 Pays</h3>
+    <ul id="zone-list"></ul>
+    <button class="btn btn-new" onclick="createNewZone()">+ Nouveau pays</button>
+  </section>
+
+  <section id="props-section" style="display:none">
+    <h3>⚙ Propriétés</h3>
+    <div class="prop-row"><label>ID :</label><input id="prop-id" oninput="onPropChange()"></div>
+    <div class="prop-row"><label>Nom :</label><input id="prop-name" oninput="onPropChange()"></div>
+    <div class="prop-row"><label>Drapeau :</label>
+      <div style="flex:1;position:relative">
+        <input type="text" id="flag-search" placeholder="Tapez un pays..." autocomplete="off"
+          style="width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #555;background:#2a2a2a;color:#eee;border-radius:3px"
+          onfocus="openFlagDropdown()" oninput="filterFlagDropdown()" onblur="closeFlagDropdown()">
+        <input type="hidden" id="prop-flag">
+        <div id="flag-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;max-height:200px;overflow-y:auto;background:#2a2a2a;border:1px solid #555;border-top:none;z-index:100;border-radius:0 0 3px 3px"></div>
+      </div>
+    </div>
+    <div class="prop-row">
+      <label>Camp :</label>
+      <select id="prop-owner" onchange="onPropChange()">
+        <option value="0">🔵 Joueur</option>
+        <option value="1">🟥 IA 1 (Rouge)</option>
+        <option value="2">🟪 IA 2 (Violet)</option>
+        <option value="3">🟧 IA 3 (Orange)</option>
+        <option value="4">🟩 IA 4 (Vert)</option>
+        <option value="-1">⚪ Neutre</option>
+      </select>
+    </div>
+    <div class="prop-row"><label>Tier :</label>
+      <select id="prop-tier" onchange="onPropChange()">
+        <option value="1">1 — Faible</option>
+        <option value="2">2 — Moyen</option>
+        <option value="3" selected>3 — Fort</option>
+        <option value="4">4 — Très fort</option>
+        <option value="5">5 — Puissant</option>
+      </select>
+    </div>
+    <div class="prop-row"><label>Unités :</label><input type="number" id="prop-units" value="10" min="1" max="100" oninput="onPropChange()"></div>
+    <div class="prop-row"><label>Taille rond :</label><input type="range" id="prop-dotsize" min="10" max="50" value="26" oninput="onPropChange();document.getElementById('dotsize-val').textContent=this.value"><span id="dotsize-val" style="width:24px;text-align:right;font-size:11px;color:#5dade2">26</span></div>
+  </section>
+
+  <section>
+    <h3>🔧 Outils</h3>
+    <button class="btn btn-draw" id="btn-draw" onclick="toggleDrawMode()">✏ Dessiner la zone</button>
+    <button class="btn btn-wand" id="btn-wand" onclick="toggleWandMode()">🪄 Baguette magique</button>
+    <div id="wand-options" style="display:none;margin-top:6px">
+      <div class="prop-row"><label style="width:80px">Tolérance :</label><input type="range" id="wand-tolerance" min="1" max="80" value="30" style="flex:1" oninput="document.getElementById('wand-tol-val').textContent=this.value"><span id="wand-tol-val" style="width:24px;text-align:right;font-size:11px;color:#5dade2">30</span></div>
+      <div class="prop-row"><label style="width:80px">Simplifier :</label><input type="range" id="wand-simplify" min="0.5" max="8" step="0.5" value="2" style="flex:1" oninput="document.getElementById('wand-simp-val').textContent=this.value"><span id="wand-simp-val" style="width:24px;text-align:right;font-size:11px;color:#5dade2">2</span></div>
+      <div style="font-size:10px;color:#666;line-height:1.4">Cliquez sur une couleur de la carte pour créer le contour automatiquement.</div>
+    </div>
+    <button class="btn btn-undo" onclick="undoLastPoint()">↩ Annuler dernier point</button>
+    <button class="btn btn-undo" onclick="autoCenter()">⊕ Auto-centrer le drapeau</button>
+    <button class="btn btn-del" style="background:#5c2a00;color:#fdbb74" onclick="clearSelectedZonePolygon()">✂ Supprimer la zone (garder le pays)</button>
+    <button class="btn btn-del" onclick="deleteSelectedZone()">🗑 Supprimer ce pays</button>
+  </section>
+
+  <section>
+    <button class="btn btn-pick-dir" onclick="pickWorkingDir()">📂 Choisir le dossier du jeu</button>
+    <div class="save-dir-info" id="dir-info">Aucun dossier sélectionné</div>
+    <button class="btn btn-quick-save" id="btn-quick-save" onclick="quickSave()" disabled>💾 Enregistrer levels.js + i18n.js</button>
+    <button class="btn btn-save" onclick="saveCode()" style="font-size:12px;padding:8px">📋 Voir / Copier le code</button>
+  </section>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+  <canvas id="editorCanvas" width="900" height="600"></canvas>
+  <div id="status-bar">
+    <div>Mode : <span id="sb-mode">Édition</span></div>
+    <div>Zone : <span id="sb-zone">—</span></div>
+    <div>Points : <span id="sb-pts">0</span></div>
+    <div>Zones : <span id="sb-zones">0</span></div>
+  </div>
+  <div id="camp-bar" style="width:900px;margin:0 auto 8px auto;padding:6px 12px 2px 12px;background:#222;border-radius:0 0 8px 8px;display:flex;align-items:center;gap:18px;font-size:13px;min-height:32px;box-sizing:border-box;color:#eee;">
+    <!-- Rempli dynamiquement -->
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3>💾 Code généré</h3>
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchModalTab('levels')">levels.js</div>
+      <div class="modal-tab" onclick="switchModalTab('i18n')">i18n.js</div>
+    </div>
+    <div id="panel-levels" class="modal-panel active">
+      <p style="font-size:12px;color:#aaa;margin-bottom:6px">Contenu du fichier <strong>levels.js</strong> (tous les niveaux) :</p>
+      <textarea id="modal-code" readonly></textarea>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-copy" onclick="copyCode('modal-code')">📋 Copier</button>
+        <button class="btn btn-dl" onclick="downloadFile('levels')">⬇ Télécharger levels.js</button>
+      </div>
+    </div>
+    <div id="panel-i18n" class="modal-panel">
+      <p style="font-size:12px;color:#aaa;margin-bottom:6px">Contenu du fichier <strong>i18n.js</strong> (traductions auto-générées) :</p>
+      <textarea id="modal-i18n-code" readonly></textarea>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-copy" onclick="copyCode('modal-i18n-code')">📋 Copier</button>
+        <button class="btn btn-dl" onclick="downloadFile('i18n')">⬇ Télécharger i18n.js</button>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:6px;justify-content:flex-end">
+      <button class="btn btn-dl" onclick="downloadFile('both')">⬇ Télécharger les 2 fichiers</button>
+      <button class="btn btn-close" onclick="closeModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══ REORDER MODAL ═══ -->
+<div id="reorder-overlay">
+  <div id="reorder-modal">
+    <h3>↕ Réorganiser les niveaux</h3>
+    <p style="font-size:12px;color:#aaa">Glissez-déposez les niveaux pour les réordonner. La numérotation sera automatiquement recalculée.</p>
+    <ul id="reorder-list"></ul>
+    <div class="btn-row" style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-confirm-reorder" style="width:auto;padding:10px 24px" onclick="confirmReorder()">✅ Appliquer</button>
+      <button class="btn btn-close" style="width:auto;padding:10px 20px" onclick="closeReorderModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="levels.js"></script>
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let canvas, ctx;
+let mapImage = null;
+let cachedMapData = null; // pre-cached ImageData for magic wand
+let zones = [];
+let selectedIdx = null;
+let hoveredIdx = null;
+let drawMode = false;
+let wandMode = false;
+let mousePos = { x: 0, y: 0 };
+let currentEditLevel = 1;
+let currentEditAi = 1; // which AI (1-4) is being edited
+
+// Drag state
+let dragging = null; // { type: 'point'|'center', zoneIdx, pointIdx }
+let dragStartPos = null;
+
+const POINT_RADIUS = 5;
+const CENTER_RADIUS = 18;
+const GRAB_THRESHOLD = 10;
+
+// Zoom / pan
+let editorZoom = 1;
+let editorPanX = 0;
+let editorPanY = 0;
+const EDITOR_MIN_ZOOM = 0.5;
+const EDITOR_MAX_ZOOM = 8;
+let isPanning = false;
+let panStartRaw = null; // raw canvas-pixel position when pan started
+let panStartOffset = null;
+
+// ============================================================
+// LEVEL LOADING FROM levels.js
+// ============================================================
+// AI difficulty presets (GDD §8.4)
+const AI_PRESETS = {
+  tres_facile: { label: '⭐ Très facile (N1–5)',  thinkInterval: 1.2, minUnitsToAttack: 12, focusPlayerWeight: 0.6, desc: '1 IA, lente, peu agressive' },
+  facile:      { label: '⭐⭐ Facile (N6–10)',     thinkInterval: 1.0, minUnitsToAttack: 10, focusPlayerWeight: 0.6, desc: '1–2 IA, réactivité moyenne' },
+  moyen:       { label: '⭐⭐⭐ Moyen (N11–15)',   thinkInterval: 0.8, minUnitsToAttack: 9,  focusPlayerWeight: 0.6, desc: '2–3 IA, agressive' },
+  difficile:   { label: '⭐⭐⭐⭐ Difficile (N16–20)', thinkInterval: 0.6, minUnitsToAttack: 8, focusPlayerWeight: 0.6, desc: '3–4 IA, très réactive et agressive' }
+};
+
+const DEFAULT_AI = { difficulty: 'tres_facile', thinkInterval: 1.2, minUnitsToAttack: 12, focusPlayerWeight: 0.6 };
+
+// Migrate old single-AI format to per-AI format
+function ensurePerAiConfig(lvl) {
+  if (!lvl.ai) lvl.ai = {};
+  // Old format: lvl.ai has difficulty/thinkInterval directly → migrate to AI 1
+  if (lvl.ai.difficulty !== undefined && !lvl.ai[1]) {
+    const old = { difficulty: lvl.ai.difficulty, thinkInterval: lvl.ai.thinkInterval, minUnitsToAttack: lvl.ai.minUnitsToAttack, focusPlayerWeight: lvl.ai.focusPlayerWeight };
+    lvl.ai = { 1: old };
+  }
+  // Ensure all AI IDs present in the level's countries have defaults
+  // (also always ensure at least slots 1-4)
+  const minSlots = [1, 2, 3, 4];
+  const countryIds = (lvl.countries || []).map(c => c.ownerId).filter(id => id >= 1);
+  const allIds = [...new Set([...minSlots, ...countryIds])];
+  for (const i of allIds) {
+    if (!lvl.ai[i]) lvl.ai[i] = { ...DEFAULT_AI };
+  }
+}
+
+const AI_COLORS = ['','#c0392b','#8e44ad','#e67e22','#27ae60','#c0392b','#8e44ad','#e67e22','#27ae60','#c0392b','#8e44ad','#e67e22','#27ae60','#c0392b','#8e44ad'];
+function updateAiSelect() {
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl) return;
+  ensurePerAiConfig(lvl);
+  // Collect AI IDs present in this level (countries + all defined AI slots)
+  const countryAiIds = (lvl.countries || []).map(c => c.ownerId).filter(id => id >= 1);
+  const aiIds = [...new Set([...countryAiIds, ...Object.keys(lvl.ai).map(Number).filter(id => id >= 1)])].sort((a,b)=>a-b);
+  const sel = document.getElementById('ai-select');
+  const prev = parseInt(sel.value) || currentEditAi;
+  sel.innerHTML = '';
+  for (const id of aiIds) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = 'IA ' + id;
+    opt.style.color = AI_COLORS[id] || '#e74c3c';
+    sel.appendChild(opt);
+  }
+  // Restore selection or default to first
+  sel.value = aiIds.includes(prev) ? prev : aiIds[0];
+  currentEditAi = parseInt(sel.value);
+}
+
+function loadLevelIntoEditor(levelNum) {
+  const lvl = LEVELS[levelNum];
+  if (!lvl) { showToast('Niveau ' + levelNum + ' introuvable'); return; }
+  currentEditLevel = levelNum;
+  // Set SVG input and load
+  document.getElementById('svg-input').value = lvl.svg;
+  loadSvg();
+  // Set title
+  document.getElementById('level-title').value = lvl.title;
+  // Load AI params (per-AI config)
+  ensurePerAiConfig(lvl);
+  updateAiSelect();
+  loadAiFieldsForCurrentAi();
+  updateAiDesc();
+  // Load travel speed
+  document.getElementById('travel-speed').value = lvl.travelSpeed || 125;
+  // Load grade thresholds
+  const grades = lvl.grades || { S: 30, A: 60, B: 90, C: 120 };
+  if (!lvl.grades) lvl.grades = { ...grades };
+  document.getElementById('grade-s').value = grades.S;
+  document.getElementById('grade-a').value = grades.A;
+  document.getElementById('grade-b').value = grades.B;
+  document.getElementById('grade-c').value = grades.C;
+  // Deep copy countries → zones
+  zones = lvl.countries.map(c => ({
+    id: c.id,
+    name: c.name,
+    ownerId: c.ownerId,
+    unitsPrecise: c.unitsPrecise,
+    populationTier: c.populationTier,
+    flagCode: c.flagCode,
+    center: { x: c.center.x, y: c.center.y },
+    dotSize: c.dotSize || 26,
+    path: c.path.map(p => [p[0], p[1]])
+  }));
+  selectedIdx = null;
+  drawMode = false;
+  wandMode = false;
+  updateDrawButton();
+  updateWandButton();
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+}
+
+function loadAiFieldsForCurrentAi() {
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl) return;
+  ensurePerAiConfig(lvl);
+  const ai = lvl.ai[currentEditAi];
+  document.getElementById('ai-difficulty').value = ai.difficulty || 'tres_facile';
+  document.getElementById('ai-think').value = ai.thinkInterval;
+  document.getElementById('ai-min-units').value = ai.minUnitsToAttack;
+  document.getElementById('ai-focus').value = ai.focusPlayerWeight;
+  updateAiDesc();
+}
+
+function onAiSelectChange() {
+  // Save nothing – fields already saved on each param change
+  currentEditAi = parseInt(document.getElementById('ai-select').value);
+  loadAiFieldsForCurrentAi();
+}
+
+function onAiDifficultyChange() {
+  const preset = AI_PRESETS[document.getElementById('ai-difficulty').value];
+  if (!preset) return;
+  document.getElementById('ai-think').value = preset.thinkInterval;
+  document.getElementById('ai-min-units').value = preset.minUnitsToAttack;
+  document.getElementById('ai-focus').value = preset.focusPlayerWeight;
+  onAiParamChange();
+}
+
+function onAiParamChange() {
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl) return;
+  ensurePerAiConfig(lvl);
+  lvl.ai[currentEditAi] = {
+    difficulty: document.getElementById('ai-difficulty').value,
+    thinkInterval: parseFloat(document.getElementById('ai-think').value) || 1.2,
+    minUnitsToAttack: parseInt(document.getElementById('ai-min-units').value) || 12,
+    focusPlayerWeight: parseFloat(document.getElementById('ai-focus').value) || 0.6
+  };
+  updateAiDesc();
+}
+
+function onTravelSpeedChange() {
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl) return;
+  lvl.travelSpeed = parseInt(document.getElementById('travel-speed').value) || 125;
+}
+
+function onGradeChange() {
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl) return;
+  lvl.grades = {
+    S: parseInt(document.getElementById('grade-s').value) || 30,
+    A: parseInt(document.getElementById('grade-a').value) || 60,
+    B: parseInt(document.getElementById('grade-b').value) || 90,
+    C: parseInt(document.getElementById('grade-c').value) || 120
+  };
+}
+
+function updateAiDesc() {
+  const key = document.getElementById('ai-difficulty').value;
+  const preset = AI_PRESETS[key];
+  const el = document.getElementById('ai-desc');
+  if (preset) {
+    el.textContent = preset.desc;
+  } else {
+    el.textContent = '';
+  }
+}
+
+function populateLevelSelect() {
+  const sel = document.getElementById('level-select');
+  sel.innerHTML = '';
+  const keys = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
+  keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = 'Lvl ' + k + ' — ' + LEVELS[k].title;
+    sel.appendChild(opt);
+  });
+  sel.value = currentEditLevel;
+}
+
+function onLevelSelectChange() {
+  syncZonesToCurrentLevel();
+  const sel = document.getElementById('level-select');
+  loadLevelIntoEditor(parseInt(sel.value));
+}
+
+function onLevelTitleChange() {
+  const lvl = LEVELS[currentEditLevel];
+  if (lvl) {
+    lvl.title = document.getElementById('level-title').value;
+    populateLevelSelect();
+    document.getElementById('level-select').value = currentEditLevel;
+  }
+}
+
+function duplicateLevel() {
+  syncZonesToCurrentLevel();
+  const src = LEVELS[currentEditLevel];
+  if (!src) return;
+  // Find next available key
+  const keys = Object.keys(LEVELS).map(Number);
+  const newKey = Math.max(...keys) + 1;
+  // Deep copy
+  LEVELS[newKey] = {
+    title: src.title + ' (copie)',
+    svg: src.svg,
+    ai: src.ai ? { ...src.ai } : { difficulty: 'tres_facile', thinkInterval: 1.2, minUnitsToAttack: 12, focusPlayerWeight: 0.6 },
+    travelSpeed: src.travelSpeed || 125,
+    grades: src.grades ? { ...src.grades } : { S: 30, A: 60, B: 90, C: 120 },
+    countries: src.countries.map(c => ({
+      id: c.id,
+      name: c.name,
+      ownerId: c.ownerId,
+      unitsPrecise: c.unitsPrecise,
+      populationTier: c.populationTier,
+      flagCode: c.flagCode,
+      center: { x: c.center.x, y: c.center.y },
+      dotSize: c.dotSize || 26,
+      path: c.path.map(p => [p[0], p[1]])
+    }))
+  };
+  populateLevelSelect();
+  loadLevelIntoEditor(newKey);
+  document.getElementById('level-select').value = newKey;
+  showToast('Niveau ' + newKey + ' créé (copie du niveau ' + currentEditLevel + ')');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  canvas = document.getElementById('editorCanvas');
+  ctx = canvas.getContext('2d');
+
+  populateLevelSelect();
+  loadLevelIntoEditor(1);
+
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('dblclick', onDblClick);
+  canvas.addEventListener('contextmenu', e => { e.preventDefault(); if (!isPanning) undoLastPoint(); });
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('mouseup', () => { isPanning = false; panStartRaw = null; canvas.style.cursor = drawMode || wandMode ? 'crosshair' : 'default'; });
+
+  requestAnimationFrame(renderLoop);
+}
+
+function loadSvg() {
+  const src = document.getElementById('svg-input').value;
+
+  function cachePixels(img) {
+    mapImage = img;
+    cachedMapData = null;
+    try {
+      const off = document.createElement('canvas');
+      off.width = canvas.width; off.height = canvas.height;
+      const offCtx = off.getContext('2d');
+      offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      cachedMapData = offCtx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (e) {
+      // Will fail on file:// — user should use the file picker for magic wand
+    }
+  }
+
+  // Try fetch → blob URL first (works on http/https, avoids CORS tainting)
+  if (location.protocol !== 'file:') {
+    fetch(src)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => cachePixels(img);
+        img.src = url;
+      })
+      .catch(() => loadSvgDirect(src));
+  } else {
+    loadSvgDirect(src);
+  }
+}
+
+// Direct load (file:// mode) — map displays but magic wand needs file picker
+function loadSvgDirect(src) {
+  const img = new Image();
+  img.onload = () => {
+    mapImage = img;
+    // Don’t attempt getImageData here; it will fail on file://
+    // User can use the file picker to enable the magic wand
+  };
+  img.onerror = () => { mapImage = null; cachedMapData = null; showToast('Image non trouvée: ' + src); };
+  img.src = src;
+}
+
+// Load via <input type="file"> — always works, even on file://
+function loadSvgFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Default generated paths to the project's img folder.
+  document.getElementById('svg-input').value = 'img/' + file.name;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    mapImage = img;
+    cachedMapData = null;
+    const off = document.createElement('canvas');
+    off.width = canvas.width; off.height = canvas.height;
+    const offCtx = off.getContext('2d');
+    offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    cachedMapData = offCtx.getImageData(0, 0, canvas.width, canvas.height);
+    showToast('✓ Image chargée — baguette magique disponible');
+  };
+  img.src = url;
+}
+
+// ============================================================
+// ZONE MANAGEMENT
+// ============================================================
+function createNewZone() {
+  const idx = zones.length + 1;
+  zones.push({
+    id: 'pays_' + idx,
+    name: 'Pays ' + idx,
+    ownerId: -1,
+    unitsPrecise: 5,
+    populationTier: 2,
+    flagCode: '',
+    center: { x: 450, y: 300 },
+    dotSize: 26,
+    path: []
+  });
+  selectZone(zones.length - 1);
+  drawMode = true;
+  updateDrawButton();
+  updateZoneList();
+  updateStatusBar();
+  showToast('Nouveau pays créé — cliquez sur la carte pour dessiner');
+}
+
+function clearSelectedZonePolygon() {
+  if (selectedIdx === null) return;
+  zones[selectedIdx].path = [];
+  drawMode = false;
+  updateDrawButton();
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+}
+
+function deleteSelectedZone() {
+  if (selectedIdx === null) return;
+  zones.splice(selectedIdx, 1);
+  selectedIdx = null;
+  drawMode = false;
+  updateDrawButton();
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+}
+
+function selectZone(idx) {
+  selectedIdx = idx;
+  drawMode = false;
+  wandMode = false;
+  updateDrawButton();
+  updateWandButton();
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+}
+
+function toggleDrawMode() {
+  if (selectedIdx === null) { showToast('Sélectionnez un pays d\'abord'); return; }
+  drawMode = !drawMode;
+  wandMode = false;
+  updateDrawButton();
+  updateWandButton();
+  updateStatusBar();
+}
+
+function updateDrawButton() {
+  const btn = document.getElementById('btn-draw');
+  btn.classList.toggle('active', drawMode);
+  btn.textContent = drawMode ? '⏹ Arrêter le dessin' : '✏ Dessiner la zone';
+  canvas.style.cursor = drawMode ? 'crosshair' : (wandMode ? 'crosshair' : 'default');
+}
+
+function toggleWandMode() {
+  if (selectedIdx === null) { showToast('Sélectionnez un pays d\'abord'); return; }
+  wandMode = !wandMode;
+  drawMode = false;
+  updateDrawButton();
+  updateWandButton();
+  updateStatusBar();
+}
+
+function updateWandButton() {
+  const btn = document.getElementById('btn-wand');
+  btn.classList.toggle('active', wandMode);
+  btn.textContent = wandMode ? '⏹ Arrêter baguette' : '🪄 Baguette magique';
+  document.getElementById('wand-options').style.display = wandMode ? 'block' : 'none';
+  canvas.style.cursor = wandMode ? 'crosshair' : (drawMode ? 'crosshair' : 'default');
+}
+
+function undoLastPoint() {
+  if (selectedIdx === null) return;
+  const z = zones[selectedIdx];
+  if (z.path.length > 0) {
+    z.path.pop();
+    updateStatusBar();
+  }
+}
+
+function autoCenter() {
+  if (selectedIdx === null) return;
+  const z = zones[selectedIdx];
+  if (z.path.length < 3) return;
+  let sx = 0, sy = 0;
+  for (const p of z.path) { sx += p[0]; sy += p[1]; }
+  z.center.x = Math.round(sx / z.path.length);
+  z.center.y = Math.round(sy / z.path.length);
+  updatePropsPanel();
+}
+
+// ============================================================
+// UI UPDATES
+// ============================================================
+function updateZoneList() {
+  const ul = document.getElementById('zone-list');
+  ul.innerHTML = '';
+  zones.forEach((z, i) => {
+    const li = document.createElement('li');
+    li.className = i === selectedIdx ? 'active' : '';
+    li.onclick = () => selectZone(i);
+
+    const dot = document.createElement('div');
+    dot.className = 'zone-dot';
+    dot.style.background = getOwnerColor(z.ownerId);
+    li.appendChild(dot);
+
+    const name = document.createElement('span');
+    name.textContent = z.name || z.id;
+    li.appendChild(name);
+
+    const pts = document.createElement('span');
+    pts.className = 'zone-pts';
+    pts.textContent = z.path.length + ' pts';
+    li.appendChild(pts);
+
+    ul.appendChild(li);
+  });
+}
+
+// ── Flag search dropdown ──
+const FLAG_LIST = [
+  {v:'',label:'— Aucun —'},
+  {v:'fr',label:'🇫🇷 France'},{v:'gb',label:'🇬🇧 Royaume-Uni'},{v:'ie',label:'🇮🇪 Irlande'},{v:'es',label:'🇪🇸 Espagne'},
+  {v:'pt',label:'🇵🇹 Portugal'},{v:'it',label:'🇮🇹 Italie'},{v:'de',label:'🇩🇪 Allemagne'},{v:'ch',label:'🇨🇭 Suisse'},
+  {v:'at',label:'🇦🇹 Autriche'},{v:'be',label:'🇧🇪 Belgique'},{v:'nl',label:'🇳🇱 Pays-Bas'},{v:'lu',label:'🇱🇺 Luxembourg'},
+  {v:'mc',label:'🇲🇨 Monaco'},{v:'ad',label:'🇦🇩 Andorre'},{v:'li',label:'🇱🇮 Liechtenstein'},{v:'mt',label:'🇲🇹 Malte'},
+  {v:'no',label:'🇳🇴 Norvège'},{v:'se',label:'🇸🇪 Suède'},{v:'fi',label:'🇫🇮 Finlande'},{v:'dk',label:'🇩🇰 Danemark'},
+  {v:'is',label:'🇮🇸 Islande'},{v:'ee',label:'🇪🇪 Estonie'},{v:'lv',label:'🇱🇻 Lettonie'},{v:'lt',label:'🇱🇹 Lituanie'},
+  {v:'pl',label:'🇵🇱 Pologne'},{v:'cz',label:'🇨🇿 Tchéquie'},{v:'sk',label:'🇸🇰 Slovaquie'},{v:'hu',label:'🇭🇺 Hongrie'},
+  {v:'ro',label:'🇷🇴 Roumanie'},{v:'bg',label:'🇧🇬 Bulgarie'},{v:'hr',label:'🇭🇷 Croatie'},{v:'si',label:'🇸🇮 Slovénie'},
+  {v:'rs',label:'🇷🇸 Serbie'},{v:'ba',label:'🇧🇦 Bosnie-Herzégovine'},{v:'me',label:'🇲🇪 Monténégro'},
+  {v:'mk',label:'🇲🇰 Macédoine du Nord'},{v:'al',label:'🇦🇱 Albanie'},{v:'xk',label:'🇽🇰 Kosovo'},
+  {v:'md',label:'🇲🇩 Moldavie'},{v:'ua',label:'🇺🇦 Ukraine'},{v:'by',label:'🇧🇾 Biélorussie'},
+  {v:'gr',label:'🇬🇷 Grèce'},{v:'cy',label:'🇨🇾 Chypre'},{v:'tr',label:'🇹🇷 Turquie'},{v:'ru',label:'🇷🇺 Russie'},
+  {v:'ge',label:'🇬🇪 Géorgie'},{v:'am',label:'🇦🇲 Arménie'},{v:'az',label:'🇦🇿 Azerbaïdjan'},
+  {v:'us',label:'🇺🇸 États-Unis'},{v:'ca',label:'🇨🇦 Canada'},{v:'mx',label:'🇲🇽 Mexique'},
+  {v:'gt',label:'🇬🇹 Guatemala'},{v:'bz',label:'🇧🇿 Belize'},{v:'hn',label:'🇭🇳 Honduras'},
+  {v:'sv',label:'🇸🇻 Salvador'},{v:'ni',label:'🇳🇮 Nicaragua'},{v:'cr',label:'🇨🇷 Costa Rica'},
+  {v:'pa',label:'🇵🇦 Panama'},{v:'cu',label:'🇨🇺 Cuba'},{v:'jm',label:'🇯🇲 Jamaïque'},
+  {v:'ht',label:'🇭🇹 Haïti'},{v:'do',label:'🇩🇴 Rép. dominicaine'},
+  {v:'br',label:'🇧🇷 Brésil'},{v:'ar',label:'🇦🇷 Argentine'},{v:'cl',label:'🇨🇱 Chili'},
+  {v:'co',label:'🇨🇴 Colombie'},{v:'ve',label:'🇻🇪 Venezuela'},{v:'pe',label:'🇵🇪 Pérou'},
+  {v:'ec',label:'🇪🇨 Équateur'},{v:'bo',label:'🇧🇴 Bolivie'},{v:'py',label:'🇵🇾 Paraguay'},
+  {v:'uy',label:'🇺🇾 Uruguay'},{v:'gy',label:'🇬🇾 Guyana'},{v:'sr',label:'🇸🇷 Suriname'},
+  {v:'ma',label:'🇲🇦 Maroc'},{v:'dz',label:'🇩🇿 Algérie'},{v:'tn',label:'🇹🇳 Tunisie'},
+  {v:'ly',label:'🇱🇾 Libye'},{v:'eg',label:'🇪🇬 Égypte'},{v:'sa',label:'🇸🇦 Arabie saoudite'},
+  {v:'ae',label:'🇦🇪 Émirats arabes unis'},{v:'qa',label:'🇶🇦 Qatar'},{v:'kw',label:'🇰🇼 Koweït'},
+  {v:'iq',label:'🇮🇶 Irak'},{v:'ir',label:'🇮🇷 Iran'},{v:'il',label:'🇮🇱 Israël'},
+  {v:'lb',label:'🇱🇧 Liban'},{v:'jo',label:'🇯🇴 Jordanie'},{v:'sy',label:'🇸🇾 Syrie'},
+  {v:'ng',label:'🇳🇬 Nigéria'},{v:'za',label:'🇿🇦 Afrique du Sud'},{v:'ke',label:'🇰🇪 Kenya'},
+  {v:'et',label:'🇪🇹 Éthiopie'},{v:'gh',label:'🇬🇭 Ghana'},{v:'ci',label:"🇨🇮 Côte d'Ivoire"},
+  {v:'sn',label:'🇸🇳 Sénégal'},{v:'cm',label:'🇨🇲 Cameroun'},{v:'cd',label:'🇨🇩 RD Congo'},
+  {v:'tz',label:'🇹🇿 Tanzanie'},{v:'mg',label:'🇲🇬 Madagascar'},{v:'mz',label:'🇲🇿 Mozambique'},
+  {v:'ao',label:'🇦🇴 Angola'},{v:'sd',label:'🇸🇩 Soudan'},{v:'ml',label:'🇲🇱 Mali'},
+  {v:'bf',label:'🇧🇫 Burkina Faso'},{v:'ne',label:'🇳🇪 Niger'},{v:'td',label:'🇹🇩 Tchad'},
+  {v:'ug',label:'🇺🇬 Ouganda'},{v:'rw',label:'🇷🇼 Rwanda'},{v:'re',label:'🇷🇪 La Réunion'},
+  {v:'cn',label:'🇨🇳 Chine'},{v:'jp',label:'🇯🇵 Japon'},{v:'kr',label:'🇰🇷 Corée du Sud'},
+  {v:'kp',label:'🇰🇵 Corée du Nord'},{v:'in',label:'🇮🇳 Inde'},{v:'pk',label:'🇵🇰 Pakistan'},
+  {v:'bd',label:'🇧🇩 Bangladesh'},{v:'id',label:'🇮🇩 Indonésie'},{v:'th',label:'🇹🇭 Thaïlande'},
+  {v:'vn',label:'🇻🇳 Viêt Nam'},{v:'ph',label:'🇵🇭 Philippines'},{v:'my',label:'🇲🇾 Malaisie'},
+  {v:'sg',label:'🇸🇬 Singapour'},{v:'mm',label:'🇲🇲 Myanmar'},{v:'kh',label:'🇰🇭 Cambodge'},
+  {v:'la',label:'🇱🇦 Laos'},{v:'mn',label:'🇲🇳 Mongolie'},{v:'kz',label:'🇰🇿 Kazakhstan'},
+  {v:'uz',label:'🇺🇿 Ouzbékistan'},{v:'af',label:'🇦🇫 Afghanistan'},{v:'np',label:'🇳🇵 Népal'},
+  {v:'lk',label:'🇱🇰 Sri Lanka'},
+  {v:'au',label:'🇦🇺 Australie'},{v:'nz',label:'🇳🇿 Nouvelle-Zélande'},
+  {v:'pg',label:'🇵🇬 Papouasie-N.-Guinée'},{v:'fj',label:'🇫🇯 Fidji'}
+];
+
+function getFlagLabel(code) {
+  const f = FLAG_LIST.find(f => f.v === code);
+  return f ? f.label : code;
+}
+
+function openFlagDropdown() {
+  filterFlagDropdown();
+  document.getElementById('flag-dropdown').style.display = 'block';
+}
+
+function closeFlagDropdown() {
+  setTimeout(() => { document.getElementById('flag-dropdown').style.display = 'none'; }, 150);
+}
+
+function filterFlagDropdown() {
+  const dd = document.getElementById('flag-dropdown');
+  const q = document.getElementById('flag-search').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  dd.innerHTML = '';
+  const matches = FLAG_LIST.filter(f => {
+    if (!q) return true;
+    const norm = f.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return norm.includes(q) || f.v.includes(q);
+  });
+  for (const f of matches) {
+    const div = document.createElement('div');
+    div.textContent = f.label;
+    div.style.cssText = 'padding:4px 8px;cursor:pointer;font-size:12px;color:#eee;';
+    div.addEventListener('mouseenter', () => div.style.background = '#444');
+    div.addEventListener('mouseleave', () => div.style.background = 'none');
+    div.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      selectFlag(f.v, f.label);
+    });
+    dd.appendChild(div);
+  }
+  if (matches.length === 0) {
+    dd.innerHTML = '<div style="padding:4px 8px;color:#888;font-size:11px">Aucun résultat</div>';
+  }
+}
+
+function selectFlag(code, label) {
+  document.getElementById('prop-flag').value = code;
+  document.getElementById('flag-search').value = label;
+  document.getElementById('flag-dropdown').style.display = 'none';
+  onPropChange();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#flag-search') && !e.target.closest('#flag-dropdown')) {
+    document.getElementById('flag-dropdown').style.display = 'none';
+  }
+});
+
+function updatePropsPanel() {
+  const sec = document.getElementById('props-section');
+  if (selectedIdx === null) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  const z = zones[selectedIdx];
+  document.getElementById('prop-id').value = z.id;
+  document.getElementById('prop-name').value = z.name;
+  document.getElementById('prop-flag').value = z.flagCode;
+  document.getElementById('flag-search').value = getFlagLabel(z.flagCode);
+  document.getElementById('prop-owner').value = z.ownerId;
+  document.getElementById('prop-tier').value = z.populationTier;
+  document.getElementById('prop-units').value = z.unitsPrecise;
+  document.getElementById('prop-dotsize').value = z.dotSize || 26;
+  document.getElementById('dotsize-val').textContent = z.dotSize || 26;
+}
+
+function onPropChange() {
+  if (selectedIdx === null) return;
+  const z = zones[selectedIdx];
+  z.id = document.getElementById('prop-id').value.trim() || z.id;
+  z.name = document.getElementById('prop-name').value.trim();
+  z.flagCode = document.getElementById('prop-flag').value.trim();
+  z.ownerId = parseInt(document.getElementById('prop-owner').value);
+  z.populationTier = parseInt(document.getElementById('prop-tier').value);
+  z.unitsPrecise = parseInt(document.getElementById('prop-units').value) || 5;
+  z.dotSize = parseInt(document.getElementById('prop-dotsize').value) || 26;
+  updateZoneList();
+}
+
+function updateStatusBar() {
+  document.getElementById('sb-mode').textContent = drawMode ? 'Dessin ✏' : (wandMode ? 'Baguette 🪄' : 'Édition');
+  document.getElementById('sb-zone').textContent = selectedIdx !== null ? zones[selectedIdx].name : '—';
+  document.getElementById('sb-pts').textContent = selectedIdx !== null ? zones[selectedIdx].path.length : '0';
+  document.getElementById('sb-zones').textContent = zones.length;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const rawX = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const rawY = (e.clientY - rect.top) * (canvas.height / rect.height);
+  return {
+    x: Math.round(rawX / editorZoom + editorPanX),
+    y: Math.round(rawY / editorZoom + editorPanY)
+  };
+}
+
+function getRawCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const raw = getRawCanvasPos(e);
+  // World position under cursor before zoom
+  const worldX = raw.x / editorZoom + editorPanX;
+  const worldY = raw.y / editorZoom + editorPanY;
+  const factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+  editorZoom = Math.max(EDITOR_MIN_ZOOM, Math.min(EDITOR_MAX_ZOOM, editorZoom * factor));
+  // Keep world position under cursor fixed
+  editorPanX = worldX - raw.x / editorZoom;
+  editorPanY = worldY - raw.y / editorZoom;
+}
+
+function onMouseDown(e) {
+  // Middle-click or right-click drag → pan
+  if (e.button === 1 || e.button === 2) {
+    e.preventDefault();
+    isPanning = true;
+    panStartRaw = getRawCanvasPos(e);
+    panStartOffset = { x: editorPanX, y: editorPanY };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button !== 0) return;
+  const pos = getCanvasPos(e);
+
+  // Magic wand mode
+  if (wandMode && selectedIdx !== null) {
+    magicWandSelect(pos.x, pos.y);
+    return;
+  }
+
+  if (drawMode && selectedIdx !== null) {
+    // Add point
+    zones[selectedIdx].path.push([pos.x, pos.y]);
+    updateStatusBar();
+    updateZoneList();
+    return;
+  }
+
+  // Try to grab a center
+  for (let i = 0; i < zones.length; i++) {
+    const c = zones[i].center;
+    const dx = pos.x - c.x, dy = pos.y - c.y;
+    if (Math.sqrt(dx*dx + dy*dy) < (zones[i].dotSize || 26) + 4) {
+      selectZone(i);
+      dragging = { type: 'center', zoneIdx: i };
+      dragStartPos = { ...pos };
+      return;
+    }
+  }
+
+  // Try to grab a vertex point
+  for (let i = 0; i < zones.length; i++) {
+    const path = zones[i].path;
+    for (let j = 0; j < path.length; j++) {
+      const dx = pos.x - path[j][0], dy = pos.y - path[j][1];
+      if (Math.sqrt(dx*dx + dy*dy) < GRAB_THRESHOLD) {
+        selectZone(i);
+        dragging = { type: 'point', zoneIdx: i, pointIdx: j };
+        dragStartPos = { ...pos };
+        return;
+      }
+    }
+  }
+
+  // Click on zone area to select AND drag entire zone
+  for (let i = zones.length - 1; i >= 0; i--) {
+    if (zones[i].path.length >= 3 && pointInPoly(pos.x, pos.y, zones[i].path)) {
+      selectZone(i);
+      dragging = { type: 'zone', zoneIdx: i };
+      dragStartPos = { ...pos };
+      return;
+    }
+  }
+
+  // Click on empty = deselect
+  selectedIdx = null;
+  drawMode = false;
+  wandMode = false;
+  updateDrawButton();
+  updateWandButton();
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+}
+
+function onMouseMove(e) {
+  mousePos = getCanvasPos(e);
+
+  // Handle pan
+  if (isPanning && panStartRaw) {
+    const raw = getRawCanvasPos(e);
+    editorPanX = panStartOffset.x - (raw.x - panStartRaw.x) / editorZoom;
+    editorPanY = panStartOffset.y - (raw.y - panStartRaw.y) / editorZoom;
+    return;
+  }
+
+  // Détection du pays survolé (hors mode dessin/drag)
+  if (!drawMode && !wandMode && !dragging) {
+    let found = null;
+    for (let i = zones.length - 1; i >= 0; i--) {
+      if (zones[i].path.length >= 3 && pointInPoly(mousePos.x, mousePos.y, zones[i].path)) {
+        found = i;
+        break;
+      }
+    }
+    hoveredIdx = found;
+  } else {
+    hoveredIdx = null;
+  }
+
+  if (dragging) {
+    if (dragging.type === 'center') {
+      zones[dragging.zoneIdx].center.x = mousePos.x;
+      zones[dragging.zoneIdx].center.y = mousePos.y;
+    } else if (dragging.type === 'point') {
+      zones[dragging.zoneIdx].path[dragging.pointIdx][0] = mousePos.x;
+      zones[dragging.zoneIdx].path[dragging.pointIdx][1] = mousePos.y;
+    } else if (dragging.type === 'zone') {
+      const dx = mousePos.x - dragStartPos.x;
+      const dy = mousePos.y - dragStartPos.y;
+      const z = zones[dragging.zoneIdx];
+      z.center.x += dx;
+      z.center.y += dy;
+      for (const p of z.path) {
+        p[0] += dx;
+        p[1] += dy;
+      }
+      dragStartPos = { ...mousePos };
+    }
+  }
+
+  // Cursor style
+  if (!drawMode && !wandMode && !dragging) {
+    let cursorStyle = 'default';
+    for (const z of zones) {
+      const c = z.center;
+      if (Math.sqrt((mousePos.x-c.x)**2+(mousePos.y-c.y)**2) < (z.dotSize || 26) + 4) { cursorStyle = 'grab'; break; }
+      let foundPt = false;
+      for (const p of z.path) {
+        if (Math.sqrt((mousePos.x-p[0])**2+(mousePos.y-p[1])**2) < GRAB_THRESHOLD) { cursorStyle = 'grab'; foundPt = true; break; }
+      }
+      if (foundPt) break;
+      if (z.path.length >= 3 && pointInPoly(mousePos.x, mousePos.y, z.path)) { cursorStyle = 'move'; break; }
+    }
+    canvas.style.cursor = cursorStyle;
+  } else if (dragging) {
+    canvas.style.cursor = dragging.type === 'zone' ? 'move' : 'grabbing';
+  }
+}
+
+function onMouseUp(e) {
+  if (isPanning) {
+    isPanning = false;
+    panStartRaw = null;
+    canvas.style.cursor = drawMode || wandMode ? 'crosshair' : 'default';
+    return;
+  }
+  if (dragging) {
+    dragging = null;
+    dragStartPos = null;
+    updatePropsPanel();
+  }
+}
+
+function onDblClick(e) {
+  if (drawMode) {
+    drawMode = false;
+    updateDrawButton();
+    updateStatusBar();
+    showToast('Zone fermée');
+    return;
+  }
+  if (wandMode) {
+    wandMode = false;
+    updateWandButton();
+    updateStatusBar();
+    return;
+  }
+  // Double-click on empty area → reset zoom
+  const pos = getCanvasPos(e);
+  const hitZone = zones.some(z => z.path.length >= 3 && pointInPoly(pos.x, pos.y, z.path));
+  if (!hitZone) {
+    editorZoom = 1; editorPanX = 0; editorPanY = 0;
+    showToast('Zoom réinitialisé');
+  }
+}
+
+function onKeyDown(e) {
+  if (e.key === 'Escape') {
+    drawMode = false;
+    wandMode = false;
+    selectedIdx = null;
+    updateDrawButton();
+    updateWandButton();
+    updateZoneList();
+    updatePropsPanel();
+    updateStatusBar();
+  }
+  if (e.key === 'Delete' && selectedIdx !== null) {
+    deleteSelectedZone();
+  }
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault();
+    undoLastPoint();
+  }
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    saveCode();
+  }
+  // Zoom reset
+  if (e.key === 'Home' || (e.ctrlKey && e.key === '0')) {
+    e.preventDefault();
+    editorZoom = 1; editorPanX = 0; editorPanY = 0;
+  }
+}
+
+function pointInPoly(x, y, path) {
+  let inside = false;
+  for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+    const xi = path[i][0], yi = path[i][1];
+    const xj = path[j][0], yj = path[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function getOwnerColor(ownerId) {
+  if (ownerId === 0) return '#3498db';
+  if (ownerId === 1) return '#e74c3c';
+  if (ownerId === 2) return '#8e44ad';
+  if (ownerId === 3) return '#e67e22';
+  if (ownerId === 4) return '#27ae60';
+  if (ownerId >= 5) return '#e74c3c';
+  return '#95a5a6';
+}
+
+function getOwnerOverlay(ownerId, highlight) {
+  const a = highlight ? 0.45 : 0.3;
+  if (ownerId === 0) return `rgba(41,128,185,${a})`;
+  if (ownerId === 1) return `rgba(192,57,43,${a})`;
+  if (ownerId === 2) return `rgba(142,68,173,${a})`;
+  if (ownerId === 3) return `rgba(230,126,34,${a})`;
+  if (ownerId === 4) return `rgba(39,174,96,${a})`;
+  if (ownerId >= 5) return `rgba(192,57,43,${a})`;
+  return `rgba(127,140,141,${highlight ? 0.25 : 0.12})`;
+}
+
+function drawPolygon(path) {
+  if (path.length === 0) return;
+  ctx.beginPath();
+  ctx.moveTo(path[0][0], path[0][1]);
+  for (let i = 1; i < path.length; i++) ctx.lineTo(path[i][0], path[i][1]);
+  ctx.closePath();
+}
+
+function renderLoop() {
+  render();
+  requestAnimationFrame(renderLoop);
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Apply zoom/pan transform for all world-space drawing
+  ctx.save();
+  ctx.setTransform(editorZoom, 0, 0, editorZoom,
+    -editorPanX * editorZoom, -editorPanY * editorZoom);
+
+  // Background
+  if (mapImage) {
+    ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#e8e8e8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chargement du SVG...', canvas.width/2, canvas.height/2);
+  }
+
+  // Zone overlays
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i];
+    if (z.path.length < 3) continue;
+    ctx.save();
+    drawPolygon(z.path);
+    ctx.clip();
+    // Surbrillance forte si survolé
+    ctx.fillStyle = getOwnerOverlay(z.ownerId, i === selectedIdx || i === hoveredIdx);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  // Zone borders
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i];
+    if (z.path.length < 2) continue;
+    let borderColor = 'rgba(255,255,255,0.5)';
+    let borderWidth = 1.5;
+    if (i === selectedIdx) { borderColor = '#f1c40f'; borderWidth = 2.5; }
+    else if (i === hoveredIdx) { borderColor = '#00e6ff'; borderWidth = 3.5; }
+    ctx.save();
+    drawPolygon(z.path);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = borderWidth;
+    ctx.shadowColor = i === hoveredIdx ? '#00e6ff' : 'transparent';
+    ctx.shadowBlur = i === hoveredIdx ? 16 : 0;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Vertex points
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i];
+    const isSel = i === selectedIdx;
+    for (let j = 0; j < z.path.length; j++) {
+      const px = z.path[j][0], py = z.path[j][1];
+      const r = isSel ? POINT_RADIUS + 1 : POINT_RADIUS - 1;
+
+      if (isSel) {
+        // Numbered point
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#f1c40f';
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Index number
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(j, px, py);
+      } else {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fill();
+      }
+    }
+  }
+
+  // Draw mode: line from last point to cursor
+  if (drawMode && selectedIdx !== null) {
+    const z = zones[selectedIdx];
+    if (z.path.length > 0) {
+      const last = z.path[z.path.length - 1];
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(last[0], last[1]);
+      ctx.lineTo(mousePos.x, mousePos.y);
+      ctx.stroke();
+      // Also show closing line
+      if (z.path.length > 2) {
+        ctx.strokeStyle = 'rgba(241,196,15,0.3)';
+        ctx.beginPath();
+        ctx.moveTo(z.path[0][0], z.path[0][1]);
+        ctx.lineTo(mousePos.x, mousePos.y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    // Crosshair at cursor
+    ctx.strokeStyle = 'rgba(241,196,15,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mousePos.x - 10, mousePos.y);
+    ctx.lineTo(mousePos.x + 10, mousePos.y);
+    ctx.moveTo(mousePos.x, mousePos.y - 10);
+    ctx.lineTo(mousePos.x, mousePos.y + 10);
+    ctx.stroke();
+  }
+
+  // Center markers with flags
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i];
+    const cx = z.center.x, cy = z.center.y;
+    const isSel = i === selectedIdx;
+    const r = z.dotSize || 26;
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    // Ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = isSel ? '#f1c40f' : getOwnerColor(z.ownerId);
+    ctx.lineWidth = isSel ? 3 : 2;
+    ctx.stroke();
+
+    // Flag inside (scaled to dot size)
+    const fw = Math.round(r * 1.3);
+    const fh = Math.round(fw / 2);
+    drawFlag(z.flagCode, cx - fw / 2, cy - fh / 2, fw, fh);
+
+    // Name below
+    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(z.name, cx, cy + r + 3);
+    ctx.fillStyle = '#222';
+    ctx.fillText(z.name, cx, cy + r + 3);
+  }
+
+  // Restore world transform — draw HUD overlays in screen space
+  ctx.restore();
+
+  // Coordinates tooltip (screen-space)
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(canvas.width - 90, 4, 86, 20);
+  ctx.fillStyle = '#5dade2';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${mousePos.x}, ${mousePos.y}`, canvas.width - 8, 8);
+
+  // Zoom indicator
+  if (editorZoom !== 1) {
+    const zoomLabel = Math.round(editorZoom * 100) + '%';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(canvas.width - 52, 28, 48, 18);
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('🔍 ' + zoomLabel, canvas.width - 6, 31);
+  }
+}
+
+// ============================================================
+// FLAG DRAWING
+// ============================================================
+function drawFlag(code, x, y, w, h) {
+
+  // Clip d'abord pour tous les drapeaux
+  ctx.save();
+  const r = 2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+  ctx.clip();
+
+  // Afrique : mg, ma, dz, za, ne, ml, eg, sd, ao
+  if (code === 'mg') {
+    // Madagascar: blanc vertical + rouge/vert horizontal
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w * 0.33, h);
+    ctx.fillStyle = '#FC3D32'; ctx.fillRect(x + w * 0.33, y, w * 0.67, h / 2);
+    ctx.fillStyle = '#007E3A'; ctx.fillRect(x + w * 0.33, y + h / 2, w * 0.67, h / 2);
+  } else if (code === 'ma') {
+    // Maroc: rouge + étoile verte
+    ctx.fillStyle = '#C1272D'; ctx.fillRect(x, y, w, h);
+    const cx = x + w / 2, cy = y + h / 2, sr = h * 0.32;
+    ctx.strokeStyle = '#006233'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      const px = cx + sr * Math.cos(a), py = cy + sr * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+  } else if (code === 'dz') {
+    // Algérie: vert/blanc + croissant/étoile rouge
+    const sw = w / 2;
+    ctx.fillStyle = '#006233'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    const cx = x + w / 2, cy = y + h / 2, mr = h * 0.28;
+    ctx.fillStyle = '#D21034';
+    ctx.beginPath(); ctx.arc(cx, cy, mr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#006233';
+    ctx.beginPath(); ctx.arc(cx + mr * 0.25, cy, mr * 0.8, 0, Math.PI * 2); ctx.fill();
+    // étoile
+    ctx.fillStyle = '#D21034';
+    const stR = mr * 0.35, stx = cx + mr * 0.3;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 4 * Math.PI / 5;
+      const px = stx + stR * Math.cos(a), py = cy + stR * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'za') {
+    // Afrique du Sud: bandes horizontales + Y bleu
+    const sh = h / 3;
+    ctx.fillStyle = '#E03C31'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#007749'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#001489';
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.35, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFB81C';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.12); ctx.lineTo(x + w * 0.3, y + h / 2); ctx.lineTo(x, y + h * 0.88);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.22); ctx.lineTo(x + w * 0.22, y + h / 2); ctx.lineTo(x, y + h * 0.78);
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'ne') {
+    // Niger: orange/blanc/vert + rond orange
+    const sh = h / 3;
+    ctx.fillStyle = '#E05206'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#0DB02B'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#E05206';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'ml') {
+    // Mali: vert/jaune/rouge vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#14B53A'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'eg') {
+    // Egypte: rouge/blanc/noir + rond doré
+    const sh = h / 3;
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#C09300';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'sd') {
+    // Soudan: rouge/blanc/noir + triangle vert
+    const sh = h / 3;
+    ctx.fillStyle = '#D21034'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.33, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = '#007229'; ctx.fill();
+  } else if (code === 'ao') {
+    // Angola: rouge/noir horizontal + demi-roue jaune
+    const sh = h / 2;
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x + w * 0.4, y + sh, sh * 0.6, Math.PI * 0.2, Math.PI * 1.2); ctx.stroke();
+  }
+
+  if (code === 'fr' || code === 're') {
+    const sw = w/3;
+    ctx.fillStyle='#002395'; ctx.fillRect(x,y,sw,h);
+    ctx.fillStyle='#ffffff'; ctx.fillRect(x+sw,y,sw,h);
+    ctx.fillStyle='#ED2939'; ctx.fillRect(x+sw*2,y,sw,h);
+  } else if (code === 'br') {
+    // Brésil
+    ctx.fillStyle = '#009739'; ctx.fillRect(x, y, w, h);
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(-Math.PI / 12);
+    ctx.fillStyle = '#FFCC29';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.45, h * 0.32, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.fillStyle = '#3E4095';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  } else if (code === 'ar') {
+    // Argentine
+    const sh = h / 3;
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#F6B40E';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, h * 0.13, 0, 2 * Math.PI);
+    ctx.fill();
+  } else if (code === 'bo') {
+    // Bolivie
+    const sh = h / 3;
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFD100'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#007934'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'co') {
+    // Colombie
+    const sh = h / 2;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, h * 0.25);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh + h * 0.25, w, h * 0.25);
+  } else if (code === 've') {
+    // Venezuela
+    const sh = h / 3;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh * 2, w, sh);
+    // Arc d'étoiles blanches
+    ctx.save();
+    ctx.translate(x + w / 2, y + sh + sh / 2);
+    ctx.rotate(Math.PI);
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.PI * (i + 1) / 9;
+      const rx = Math.cos(angle) * w * 0.22;
+      const ry = Math.sin(angle) * sh * 0.55;
+      ctx.save();
+      ctx.translate(rx, -ry);
+      ctx.rotate(-angle);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const a = Math.PI / 2 + j * 2 * Math.PI / 5;
+        const px = Math.cos(a) * 3, py = Math.sin(a) * 3;
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.fillStyle='#012169'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#fff';
+    ctx.fillRect(x+w/2-2,y,4,h);
+    ctx.fillRect(x,y+h/2-2,w,4);
+    ctx.fillStyle='#C8102E';
+    ctx.fillRect(x+w/2-1,y,2,h);
+    ctx.fillRect(x,y+h/2-1,w,2);
+  } else if (code === 'es') {
+    const sh = h/4;
+    ctx.fillStyle='#AA151B'; ctx.fillRect(x,y,w,sh);
+    ctx.fillStyle='#F1BF00'; ctx.fillRect(x,y+sh,w,sh*2);
+    ctx.fillStyle='#AA151B'; ctx.fillRect(x,y+sh*3,w,sh);
+  } else if (code === 'de') {
+    const sh = h/3;
+    ctx.fillStyle='#000'; ctx.fillRect(x,y,w,sh);
+    ctx.fillStyle='#D00'; ctx.fillRect(x,y+sh,w,sh);
+    ctx.fillStyle='#FFCE00'; ctx.fillRect(x,y+sh*2,w,sh);
+  } else if (code === 'it') {
+    const sw = w/3;
+    ctx.fillStyle='#008C45'; ctx.fillRect(x,y,sw,h);
+    ctx.fillStyle='#ffffff'; ctx.fillRect(x+sw,y,sw,h);
+    ctx.fillStyle='#CD212A'; ctx.fillRect(x+sw*2,y,sw,h);
+  } else if (code === 'pt') {
+    ctx.fillStyle='#006600'; ctx.fillRect(x,y,w*0.4,h);
+    ctx.fillStyle='#FF0000'; ctx.fillRect(x+w*0.4,y,w*0.6,h);
+  } else if (code === 'be') {
+    const sw = w/3;
+    ctx.fillStyle='#000'; ctx.fillRect(x,y,sw,h);
+    ctx.fillStyle='#FAE042'; ctx.fillRect(x+sw,y,sw,h);
+    ctx.fillStyle='#ED2939'; ctx.fillRect(x+sw*2,y,sw,h);
+  } else if (code === 'nl') {
+    const sh = h/3;
+    ctx.fillStyle='#AE1C28'; ctx.fillRect(x,y,w,sh);
+    ctx.fillStyle='#fff'; ctx.fillRect(x,y+sh,w,sh);
+    ctx.fillStyle='#21468B'; ctx.fillRect(x,y+sh*2,w,sh);
+  } else if (code === 'ch') {
+    ctx.fillStyle='#DA291C'; ctx.fillRect(x,y,w,h);
+    const cw=w*0.18, cl=w*0.55;
+    ctx.fillStyle='#FFFFFF';
+    ctx.fillRect(x+(w-cl)/2, y+(h-cw)/2, cl, cw);
+    ctx.fillRect(x+(w-cw)/2, y+(h-cl)/2, cw, cl);
+  } else {
+    ctx.fillStyle='#bbb'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#666'; ctx.font='bold 9px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(code||'?', x+w/2, y+h/2);
+  }
+  ctx.restore();
+  // Border
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+  ctx.strokeStyle='rgba(0,0,0,0.3)';
+  ctx.lineWidth=1;
+  ctx.stroke();
+}
+
+// ============================================================
+// MAGIC WAND — flood fill + contour extraction
+// ============================================================
+function magicWandSelect(clickX, clickY) {
+  if (!mapImage) { showToast('Chargez une image d\'abord'); return; }
+  if (!cachedMapData) { showToast('Données image non prêtes, réessayez'); return; }
+
+  const data = cachedMapData.data;
+  const w = canvas.width, h = canvas.height;
+
+  const tolerance = parseInt(document.getElementById('wand-tolerance').value) || 30;
+  const simplifyVal = parseFloat(document.getElementById('wand-simplify').value) || 2;
+
+  // Get target color
+  const idx0 = (clickY * w + clickX) * 4;
+  const tR = data[idx0], tG = data[idx0+1], tB = data[idx0+2];
+
+  function colorMatch(i) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    return Math.abs(r - tR) + Math.abs(g - tG) + Math.abs(b - tB) <= tolerance;
+  }
+
+  // Flood fill to build mask
+  const mask = new Uint8Array(w * h);
+  const stack = [clickX + clickY * w];
+  mask[clickX + clickY * w] = 1;
+  let minX = clickX, maxX = clickX, minY = clickY, maxY = clickY;
+  let pixelCount = 0;
+
+  while (stack.length > 0) {
+    const pos = stack.pop();
+    const px = pos % w, py = (pos / w) | 0;
+    pixelCount++;
+    if (px < minX) minX = px;
+    if (px > maxX) maxX = px;
+    if (py < minY) minY = py;
+    if (py > maxY) maxY = py;
+
+    // 4-connected neighbors
+    const neighbors = [
+      px > 0 ? pos - 1 : -1,
+      px < w - 1 ? pos + 1 : -1,
+      py > 0 ? pos - w : -1,
+      py < h - 1 ? pos + w : -1
+    ];
+    for (const np of neighbors) {
+      if (np >= 0 && !mask[np] && colorMatch(np * 4)) {
+        mask[np] = 1;
+        stack.push(np);
+      }
+    }
+  }
+
+  if (pixelCount < 10) {
+    showToast('Zone trop petite (' + pixelCount + ' px)');
+    return;
+  }
+
+  // Extract contour using Moore neighborhood tracing
+  const contour = traceContour(mask, w, h, minX, minY, maxX, maxY);
+  if (contour.length < 6) {
+    showToast('Contour trop petit');
+    return;
+  }
+
+  // Simplify with Douglas-Peucker
+  const simplified = douglasPeucker(contour, simplifyVal);
+
+  // Apply to selected zone
+  zones[selectedIdx].path = simplified.map(p => [p[0], p[1]]);
+
+  // Auto-center
+  let sx = 0, sy = 0;
+  for (const p of simplified) { sx += p[0]; sy += p[1]; }
+  zones[selectedIdx].center.x = Math.round(sx / simplified.length);
+  zones[selectedIdx].center.y = Math.round(sy / simplified.length);
+
+  updatePropsPanel();
+  updateStatusBar();
+  updateZoneList();
+  showToast('🪄 Zone détectée — ' + simplified.length + ' points');
+}
+
+function traceContour(mask, w, h, minX, minY, maxX, maxY) {
+  // Find first border pixel (scan from top-left)
+  let startX = -1, startY = -1;
+  for (let y = minY; y <= maxY && startX === -1; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (mask[y * w + x]) {
+        startX = x;
+        startY = y;
+        break;
+      }
+    }
+  }
+  if (startX === -1) return [];
+
+  // Moore neighborhood: 8 directions (starting from left)
+  // 0=left, 1=up-left, 2=up, 3=up-right, 4=right, 5=down-right, 6=down, 7=down-left
+  const dx = [-1, -1, 0, 1, 1, 1, 0, -1];
+  const dy = [0, -1, -1, -1, 0, 1, 1, 1];
+
+  const contour = [];
+  let cx = startX, cy = startY;
+  // We found the start pixel scanning top→bottom, so we "came from above" = direction 6 (down)
+  let dir = 6;
+  const maxSteps = Math.max(20000, (maxX - minX + maxY - minY) * 10);
+  let steps = 0;
+
+  do {
+    contour.push([cx, cy]);
+    // Find next contour pixel: scan clockwise starting from backtrack direction + 1
+    let found = false;
+    let startDir = (dir + 5) % 8;
+    for (let i = 0; i < 8; i++) {
+      const d = (startDir + i) % 8;
+      const nx = cx + dx[d], ny = cy + dy[d];
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ny * w + nx]) {
+        dir = d;
+        cx = nx;
+        cy = ny;
+        found = true;
+        break;
+      }
+    }
+    if (!found) break;
+    steps++;
+  } while ((cx !== startX || cy !== startY) && steps < maxSteps);
+
+  // Subsample: the raw contour can have thousands of points, take every Nth
+  if (contour.length > 500) {
+    const step = Math.ceil(contour.length / 500);
+    const sub = [];
+    for (let i = 0; i < contour.length; i += step) sub.push(contour[i]);
+    return sub;
+  }
+  return contour;
+}
+
+// Douglas-Peucker line simplification
+function douglasPeucker(points, epsilon) {
+  if (points.length <= 2) return points;
+
+  // Find point with max distance from line start→end
+  let dmax = 0, idx = 0;
+  const start = points[0], end = points[points.length - 1];
+  for (let i = 1; i < points.length - 1; i++) {
+    const d = perpendicularDist(points[i], start, end);
+    if (d > dmax) { dmax = d; idx = i; }
+  }
+
+  if (dmax > epsilon) {
+    const left = douglasPeucker(points.slice(0, idx + 1), epsilon);
+    const right = douglasPeucker(points.slice(idx), epsilon);
+    return left.slice(0, -1).concat(right);
+  }
+  return [start, end];
+}
+
+function perpendicularDist(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.sqrt((p[0]-a[0])**2 + (p[1]-a[1])**2);
+  const t = Math.max(0, Math.min(1, ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / lenSq));
+  const projX = a[0] + t * dx, projY = a[1] + t * dy;
+  return Math.sqrt((p[0]-projX)**2 + (p[1]-projY)**2);
+}
+
+// ============================================================
+// CODE GENERATION & SAVE
+// ============================================================
+function syncZonesToCurrentLevel() {
+  // Write current editor zones back into LEVELS
+  LEVELS[currentEditLevel].countries = zones.map(z => ({
+    id: z.id,
+    name: z.name,
+    ownerId: z.ownerId,
+    unitsPrecise: z.unitsPrecise,
+    populationTier: z.populationTier,
+    flagCode: z.flagCode,
+    center: { x: z.center.x, y: z.center.y },
+    dotSize: z.dotSize || 26,
+    path: z.path.map(p => [p[0], p[1]])
+  }));
+  LEVELS[currentEditLevel].svg = document.getElementById('svg-input').value;
+  // Sync AI params
+  onAiParamChange();
+  // Sync travel speed
+  onTravelSpeedChange();
+  // Sync grade thresholds
+  onGradeChange();
+}
+
+function generateLevelsJsCode() {
+  syncZonesToCurrentLevel();
+  let code = '// ============================================================\n';
+  code += '// LEVEL DEFINITIONS\n';
+  code += '// ============================================================\n';
+  const keys = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
+  code += 'const MAX_LEVEL = ' + keys.length + ';\n\n';
+  code += 'const LEVELS = {\n';
+  keys.forEach((k, ki) => {
+    const lvl = LEVELS[k];
+    const ai = lvl.ai || {};
+    ensurePerAiConfig(lvl);
+    code += '  ' + k + ': {\n';
+    code += `    title: '${lvl.title.replace(/'/g, "\\'") }',\n`;
+    code += `    svg: '${lvl.svg}',\n`;
+    code += '    ai: {\n';
+    const aiKeys = Object.keys(lvl.ai).map(Number).filter(id => id >= 1).sort((a,b)=>a-b);
+    aiKeys.forEach((aiIdx, ki) => {
+      const a = lvl.ai[aiIdx];
+      code += `      ${aiIdx}: { difficulty: '${a.difficulty}', thinkInterval: ${a.thinkInterval}, minUnitsToAttack: ${a.minUnitsToAttack}, focusPlayerWeight: ${a.focusPlayerWeight} }`;
+      code += ki < aiKeys.length - 1 ? ',\n' : '\n';
+    });
+    code += '    },\n';
+    if (lvl.travelSpeed && lvl.travelSpeed !== 125) {
+      code += `    travelSpeed: ${lvl.travelSpeed},\n`;
+    }
+    const grades = lvl.grades || { S: 30, A: 60, B: 90, C: 120 };
+    code += `    grades: { S: ${grades.S}, A: ${grades.A}, B: ${grades.B}, C: ${grades.C} },\n`;
+    code += '    countries: [\n';
+    lvl.countries.forEach((z, i) => {
+      code += '      {\n';
+      code += `        id: '${sanitizeId(z.id)}', name: '${z.name.replace(/'/g, "\\'")}', ownerId: ${z.ownerId},\n`;
+      code += `        unitsPrecise: ${z.unitsPrecise}, populationTier: ${z.populationTier},\n`;
+      code += `        center: { x: ${z.center.x}, y: ${z.center.y} }, dotSize: ${z.dotSize || 26}, flagCode: '${z.flagCode}',\n`;
+      code += '        path: [\n';
+      for (let j = 0; j < z.path.length; j += 5) {
+        const chunk = z.path.slice(j, j + 5);
+        code += '          ' + chunk.map(p => `[${p[0]},${p[1]}]`).join(', ');
+        code += j + 5 < z.path.length ? ',\n' : '\n';
+      }
+      code += '        ]\n';
+      code += '      }' + (i < lvl.countries.length - 1 ? ',' : '') + '\n';
+    });
+    code += '    ]\n';
+    code += '  }' + (ki < keys.length - 1 ? ',' : '') + '\n';
+  });
+  code += '};\n';
+  return code;
+}
+
+// ============================================================
+// i18n CODE GENERATION
+// ============================================================
+const SUPPORTED_LANGS = ['fr', 'en', 'es', 'de', 'pt'];
+const LANG_LABELS = { fr: 'French (default)', en: 'English', es: 'Spanish', de: 'German', pt: 'Portuguese' };
+
+function generateI18nCode() {
+  syncZonesToCurrentLevel();
+  const keys = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
+
+  // Collect all level titles and country ids/names needed
+  const levelEntries = []; // { levelNum, title }
+  const countryEntries = []; // { id, name } (deduplicated)
+  const seenCountries = new Set();
+
+  keys.forEach(k => {
+    const lvl = LEVELS[k];
+    levelEntries.push({ num: k, title: lvl.title });
+    lvl.countries.forEach(c => {
+      if (!seenCountries.has(c.id)) {
+        seenCountries.add(c.id);
+        countryEntries.push({ id: c.id, name: c.name });
+      }
+    });
+  });
+
+  // Build code using existing I18N as base if available
+  let code = '// ============================================================\n';
+  code += '// INTERNATIONALIZATION (i18n)\n';
+  code += '// ============================================================\n';
+  code += "// Usage: T('key') or T('key', { var: value })\n";
+  code += '// Language detected from URL param ?lang=fr or navigator.language\n';
+  code += '// Supported: fr, en, es, de, pt\n\n';
+  code += 'const I18N = {\n';
+
+  SUPPORTED_LANGS.forEach((lang, li) => {
+    const existing = (typeof I18N !== 'undefined' && I18N[lang]) ? I18N[lang] : {};
+    code += '  // ── ' + LANG_LABELS[lang] + ' ──\n';
+    code += '  ' + lang + ': {\n';
+
+    // Copy all existing non-level/country keys as-is
+    const staticKeys = Object.keys(existing).filter(k => !k.startsWith('levelTitle_') && !k.startsWith('country_'));
+    staticKeys.forEach(k => {
+      const val = existing[k];
+      code += '    ' + k + ': ' + quote(val) + ',\n';
+    });
+
+    // Add blank line before level titles
+    if (staticKeys.length > 0) code += '\n';
+
+    // Level titles
+    code += '    // Level titles (keyed by level number)\n';
+    levelEntries.forEach(le => {
+      const existingVal = existing['levelTitle_' + le.num];
+      // For fr: use the title from levels.js; for others: use existing or placeholder
+      let val;
+      if (lang === 'fr') {
+        val = le.title;
+      } else if (existingVal) {
+        val = existingVal;
+      } else {
+        val = '[TODO] ' + le.title; // placeholder
+      }
+      code += '    levelTitle_' + le.num + ': ' + quote(val) + ',\n';
+    });
+
+    code += '\n    // Country names (keyed by country id)\n';
+    countryEntries.forEach(ce => {
+      const safeId = sanitizeId(ce.id);
+      const existingVal = existing['country_' + safeId];
+      let val;
+      if (lang === 'fr') {
+        val = ce.name; // French name from levels.js
+      } else if (existingVal) {
+        val = existingVal;
+      } else {
+        val = '[TODO] ' + ce.name; // placeholder
+      }
+      code += '    country_' + safeId + ': ' + quote(val) + ',\n';
+    });
+
+    code += '  }' + (li < SUPPORTED_LANGS.length - 1 ? ',' : '') + '\n\n';
+  });
+  code += '};\n\n';
+
+  // Append utility functions (copy from original i18n.js)
+  code += '// ── Language detection ──\n';
+  code += "// Priority: ?lang=xx URL param > navigator.language > 'fr'\n";
+  code += 'function detectLanguage() {\n';
+  code += '  const params = new URLSearchParams(window.location.search);\n';
+  code += "  const urlLang = params.get('lang');\n";
+  code += '  if (urlLang) {\n';
+  code += "    const short = urlLang.split('-')[0].toLowerCase();\n";
+  code += '    if (I18N[short]) return short;\n';
+  code += '  }\n';
+  code += "  const navLang = (navigator.language || navigator.userLanguage || 'fr').split('-')[0].toLowerCase();\n";
+  code += '  if (I18N[navLang]) return navLang;\n';
+  code += "  return 'fr';\n";
+  code += '}\n\n';
+  code += 'const LANG = detectLanguage();\n';
+  code += "const STRINGS = I18N[LANG] || I18N['fr'];\n\n";
+  code += 'function T(key, vars) {\n';
+  code += '  let str = STRINGS[key];\n';
+  code += '  if (str === undefined) {\n';
+  code += "    str = I18N['fr'][key];\n";
+  code += '  }\n';
+  code += '  if (str === undefined) return key;\n';
+  code += '  if (vars) {\n';
+  code += '    for (const [k, v] of Object.entries(vars)) {\n';
+  code += "      str = str.split('{' + k + '}').join(v);\n";
+  code += '    }\n';
+  code += '  }\n';
+  code += '  return str;\n';
+  code += '}\n\n';
+  code += 'function TLevel(levelNum) {\n';
+  code += "  return T('levelTitle_' + levelNum) || ('Level ' + levelNum);\n";
+  code += '}\n\n';
+  code += 'function TCountry(countryId) {\n';
+  code += "  return T('country_' + countryId) || countryId;\n";
+  code += '}\n\n';
+  code += 'function TPlural(count) {\n';
+  code += "  if (LANG === 'de') return count > 1 ? 'e' : '';\n";
+  code += "  return count > 1 ? 's' : '';\n";
+  code += '}\n\n';
+  code += 'function isTouchDevice() {\n';
+  code += "  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;\n";
+  code += '}\n';
+
+  return code;
+}
+
+// Helper: quote a string value for JS output
+function quote(s) {
+  return "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '') + "'";
+}
+
+// Helper: sanitize an ID to be a valid JS identifier part (no spaces, no parens)
+function sanitizeId(id) {
+  return String(id)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[()]/g, '')        // remove parentheses
+    .replace(/\s+/g, '_')        // spaces → underscores
+    .replace(/[^a-zA-Z0-9_]/g, '_') // any other special char → _
+    .replace(/_+/g, '_')         // collapse multiple _
+    .replace(/^_|_$/g, '')       // trim leading/trailing _
+    .toLowerCase();
+}
+
+// ============================================================
+// MODAL TABS
+// ============================================================
+function switchModalTab(tab) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'levels') {
+    document.querySelectorAll('.modal-tab')[0].classList.add('active');
+    document.getElementById('panel-levels').classList.add('active');
+  } else {
+    document.querySelectorAll('.modal-tab')[1].classList.add('active');
+    document.getElementById('panel-i18n').classList.add('active');
+  }
+}
+
+function saveCode() {
+  const levelsCode = generateLevelsJsCode();
+  const i18nCode = generateI18nCode();
+  document.getElementById('modal-code').value = levelsCode;
+  document.getElementById('modal-i18n-code').value = i18nCode;
+  // Reset to levels tab
+  switchModalTab('levels');
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function copyCode(textareaId) {
+  const textarea = document.getElementById(textareaId);
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    showToast('✓ Code copié dans le presse-papiers !');
+  }).catch(() => {
+    document.execCommand('copy');
+    showToast('✓ Code copié !');
+  });
+}
+
+async function downloadFile(which) {
+  if (which === 'levels' || which === 'both') {
+    const code = generateLevelsJsCode();
+    const blob = new Blob([code], { type: 'application/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'levels.js';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  if (which === 'i18n' || which === 'both') {
+    const code = generateI18nCode();
+    const blob = new Blob([code], { type: 'application/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'i18n.js';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  const msg = which === 'both' ? '✓ levels.js + i18n.js téléchargés !' : '✓ ' + which + '.js téléchargé !';
+  showToast(msg);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+// ============================================================
+// DIRECT FILE SAVE (File System Access API)
+// ============================================================
+let dirHandle = null;
+
+async function pickWorkingDir() {
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    document.getElementById('dir-info').innerHTML = 'Dossier : <strong>' + dirHandle.name + '</strong>';
+    document.getElementById('btn-quick-save').disabled = false;
+    showToast('✓ Dossier « ' + dirHandle.name + ' » sélectionné !');
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      showToast('✗ Impossible de sélectionner le dossier');
+    }
+  }
+}
+
+async function writeFile(dirHandle, filename, content) {
+  const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+async function quickSave() {
+  if (!dirHandle) {
+    showToast('✗ Choisissez d\'abord un dossier !');
+    return;
+  }
+  try {
+    // Verify permission is still granted
+    const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+      if (req !== 'granted') {
+        showToast('✗ Permission refusée');
+        return;
+      }
+    }
+    const levelsCode = generateLevelsJsCode();
+    const i18nCode = generateI18nCode();
+    await writeFile(dirHandle, 'levels.js', levelsCode);
+    await writeFile(dirHandle, 'i18n.js', i18nCode);
+    showToast('✅ levels.js + i18n.js enregistrés !');
+  } catch (e) {
+    console.error(e);
+    showToast('✗ Erreur : ' + e.message);
+  }
+}
+
+// ============================================================
+// START
+// ============================================================
+window.addEventListener('load', init);
+
+// === BARRE DES CAMPS (troupes et ratios) ===
+function updateCampBar() {
+  const bar = document.getElementById('camp-bar');
+  if (!bar) return;
+  // Récupère la config IA et les pays du niveau courant
+  const lvl = LEVELS[currentEditLevel];
+  if (!lvl || !lvl.countries) { bar.innerHTML = ''; return; }
+  // Compte les troupes par camp
+  const camps = [
+    { id: 0, label: 'Joueur', color: '#3498db', units: 0 },
+    { id: 1, label: 'IA 1', color: '#e74c3c', units: 0 },
+    { id: 2, label: 'IA 2', color: '#8e44ad', units: 0 },
+    { id: 3, label: 'IA 3', color: '#e67e22', units: 0 },
+    { id: 4, label: 'IA 4', color: '#27ae60', units: 0 },
+    { id: -1, label: 'Neutre', color: '#aaa', units: 0 }
+  ];
+  for (const c of lvl.countries) {
+    const camp = camps.find(ca => ca.id === c.ownerId);
+    if (camp) camp.units += c.unitsPrecise || 0;
+  }
+  // Total troupes (hors neutre)
+  const total = camps.filter(ca => ca.id !== -1).reduce((s, ca) => s + ca.units, 0) || 1;
+  // Génère la barre
+  bar.innerHTML = camps.map(ca => {
+    if (ca.units === 0) return '';
+    const ratio = ca.id !== -1 ? ((ca.units / total) * 100).toFixed(1) : '';
+    return `<span style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${ca.color};border:1.5px solid #444;margin-right:2px"></span><b>${ca.label}</b> : <span style="color:#fff">${ca.units}</span>${ca.id !== -1 ? ` <span style='font-size:11px;color:#5dade2'>(${ratio}% du total)</span>` : ''}</span>`;
+  }).join('<span style="color:#444">|</span>');
+}
+
+// Appelle updateCampBar à chaque changement pertinent
+function updateAllUi() {
+  updateZoneList();
+  updatePropsPanel();
+  updateStatusBar();
+  updateCampBar();
+}
+
+// Patch les appels existants
+const _updateZoneList = updateZoneList;
+updateZoneList = function() { _updateZoneList.apply(this, arguments); updateCampBar(); };
+const _updatePropsPanel = updatePropsPanel;
+updatePropsPanel = function() { _updatePropsPanel.apply(this, arguments); updateCampBar(); };
+const _updateStatusBar = updateStatusBar;
+updateStatusBar = function() { _updateStatusBar.apply(this, arguments); updateCampBar(); };
+
+// Appel initial dans init
+const _init = init;
+init = function() { _init.apply(this, arguments); updateCampBar(); };
+
+// ============================================================
+// LEVEL REORDER — drag & drop
+// ============================================================
+let reorderData = []; // [{ key, title }] in display order
+let dragSrcIdx = null;
+
+function openReorderModal() {
+  syncZonesToCurrentLevel();
+  const keys = Object.keys(LEVELS).map(Number).sort((a, b) => a - b);
+  reorderData = keys.map(k => ({ key: k, title: LEVELS[k].title }));
+  renderReorderList();
+  document.getElementById('reorder-overlay').classList.add('show');
+}
+
+function closeReorderModal() {
+  document.getElementById('reorder-overlay').classList.remove('show');
+}
+
+function renderReorderList() {
+  const ul = document.getElementById('reorder-list');
+  ul.innerHTML = '';
+  reorderData.forEach((item, i) => {
+    const li = document.createElement('li');
+    li.draggable = true;
+    li.dataset.idx = i;
+
+    // Handle
+    const handle = document.createElement('span');
+    handle.className = 'reorder-handle';
+    handle.textContent = '☰';
+    li.appendChild(handle);
+
+    // Number badge
+    const num = document.createElement('span');
+    num.className = 'reorder-num';
+    num.textContent = i + 1;
+    li.appendChild(num);
+
+    // Title
+    const title = document.createElement('span');
+    title.className = 'reorder-title';
+    title.textContent = item.title;
+    li.appendChild(title);
+
+    // Old key hint
+    const hint = document.createElement('span');
+    hint.style.cssText = 'font-size:10px;color:#666;flex-shrink:0';
+    hint.textContent = '(était lvl ' + item.key + ')';
+    li.appendChild(hint);
+
+    // Delete button
+    const del = document.createElement('button');
+    del.className = 'reorder-del';
+    del.title = 'Supprimer ce niveau';
+    del.textContent = '🗑';
+    del.addEventListener('click', (e) => { e.stopPropagation(); deleteReorderItem(i); });
+    li.appendChild(del);
+
+    // Drag events
+    li.addEventListener('dragstart', onReorderDragStart);
+    li.addEventListener('dragover', onReorderDragOver);
+    li.addEventListener('dragleave', onReorderDragLeave);
+    li.addEventListener('drop', onReorderDrop);
+    li.addEventListener('dragend', onReorderDragEnd);
+
+    ul.appendChild(li);
+  });
+}
+
+function onReorderDragStart(e) {
+  dragSrcIdx = parseInt(e.currentTarget.dataset.idx);
+  e.currentTarget.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onReorderDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onReorderDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function onReorderDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const targetIdx = parseInt(e.currentTarget.dataset.idx);
+  if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+  // Move element from dragSrcIdx to targetIdx
+  const [moved] = reorderData.splice(dragSrcIdx, 1);
+  reorderData.splice(targetIdx, 0, moved);
+  renderReorderList();
+}
+
+function onReorderDragEnd(e) {
+  e.currentTarget.style.opacity = '1';
+  dragSrcIdx = null;
+  // Clean up all drag-over classes
+  document.querySelectorAll('#reorder-list li').forEach(li => li.classList.remove('drag-over'));
+}
+
+function deleteReorderItem(idx) {
+  if (reorderData.length <= 1) {
+    showToast('⚠ Impossible de supprimer le dernier niveau.');
+    return;
+  }
+  const item = reorderData[idx];
+  if (!confirm('Supprimer le niveau "' + item.title + '" ? Cette action est irréversible.')) return;
+  reorderData.splice(idx, 1);
+  renderReorderList();
+}
+
+function confirmReorder() {
+  // Build a new LEVELS object with renumbered keys 1..N
+  const newLevels = {};
+  reorderData.forEach((item, i) => {
+    const newKey = i + 1;
+    const oldData = LEVELS[item.key];
+    newLevels[newKey] = oldData;
+  });
+  // Clear old keys and assign new ones
+  for (const k of Object.keys(LEVELS)) delete LEVELS[k];
+  for (const k of Object.keys(newLevels)) LEVELS[k] = newLevels[k];
+  // Update MAX_LEVEL display in code generation (handled by keys.length)
+  // Reload editor
+  const oldEditLevel = currentEditLevel;
+  // Find where the old currentEditLevel ended up
+  let newEditLevel = 1;
+  reorderData.forEach((item, i) => {
+    if (item.key === oldEditLevel) newEditLevel = i + 1;
+  });
+  populateLevelSelect();
+  loadLevelIntoEditor(newEditLevel);
+  document.getElementById('level-select').value = newEditLevel;
+  closeReorderModal();
+  showToast('✅ Niveaux réorganisés ! (1 → ' + reorderData.length + ')');
+}
+</script>
+</body>
+</html>

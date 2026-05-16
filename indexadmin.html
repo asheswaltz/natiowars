@@ -1,0 +1,5206 @@
+<!DOCTYPE html>
+<html lang="fr" id="html-root">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nation Wars">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="screen-orientation" content="landscape">
+<meta name="theme-color" content="#0d1b2a">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<title id="page-title">ADMIN — Nation Wars 2</title>
+<style>
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #0d1b2a;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    overflow: hidden;
+    width: 100%; height: 100%;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; min-height: 100dvh;
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  }
+  #bg-map {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(18px) brightness(0.45);
+    opacity: 0.7;
+    transform: scale(1.15);
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  #gameCanvas {
+    position: relative;
+    z-index: 1;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    cursor: pointer;
+    max-width: calc(100vw - var(--safe-left) - var(--safe-right));
+    max-height: calc(100vh - var(--safe-top) - var(--safe-bottom));
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+    touch-action: none;
+    image-rendering: auto;
+  }
+  #ui-overlay {
+    position: fixed; top: calc(var(--safe-top) + 8px); right: calc(var(--safe-right) + 8px);
+    display: flex; gap: 8px;
+    flex-wrap: wrap;
+    z-index: 50;
+  }
+
+  /* ── Side Panels (HUD bands) ── */
+  #left-panel, #right-panel {
+    position: fixed;
+    top: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px 6px;
+    z-index: 10;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  #left-panel { left: 0; }
+  #right-panel { right: 0; pointer-events: all; }
+  #left-panel.visible, #right-panel.visible { display: flex; }
+
+  /* Army bar in left panel */
+  #hud-army-bar {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 8px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .army-segment {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 18px;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .army-segment-bar {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.3s ease;
+  }
+  .army-segment-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    min-width: 0;
+    flex-shrink: 0;
+  }
+  #hud-army-bar-row {
+    display: flex;
+    width: 100%;
+    height: 14px;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1.5px solid rgba(255,255,255,0.25);
+  }
+  .army-bar-seg {
+    height: 100%;
+    transition: width 0.35s ease;
+    min-width: 0;
+  }
+  #hud-army-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .army-entry {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .army-entry-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .army-entry-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: #d5d8dc;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .army-entry-val {
+    font-size: 10px;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  /* Live stat in left panel */
+  #hud-live-stat {
+    width: 100%;
+    padding: 8px 8px;
+    border-radius: 10px;
+    background: rgba(7,12,20,0.65);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #hud-live-stat-label {
+    font-size: 9px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  #hud-live-stat-value {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #hud-live-stat-score {
+    font-size: 12px;
+    font-weight: 900;
+    color: #f1c40f;
+    margin-top: 2px;
+  }
+
+  /* Level title in left panel */
+  #hud-level-title {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.5);
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.88);
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* Pause button in right panel */
+  #btn-pause-side {
+    background: rgba(20,30,50,0.85);
+    border: 2px solid rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: 22px;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    touch-action: manipulation;
+    flex-shrink: 0;
+    margin-top: calc(var(--safe-top) + 54px);
+  }
+  #btn-pause-side:hover { background: rgba(40,60,100,0.9); border-color: rgba(255,255,255,0.4); transform: scale(1.08); }
+  #btn-pause-side:active { transform: scale(0.93); }
+
+  /* Pause overlay on canvas */
+  #pause-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 60;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    pointer-events: all;
+  }
+  #pause-overlay.show { display: flex; }
+  #pause-overlay-icon {
+    font-size: 72px;
+    line-height: 1;
+    opacity: 0.9;
+  }
+  #pause-overlay-text {
+    color: #fff;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255,255,255,0.3);
+  }
+  #pause-overlay-hint {
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+  }
+
+  /* ── Result Animation Overlay ── */
+  #result-anim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 95;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    pointer-events: none;
+  }
+  #result-anim.show { display: flex; }
+  #result-anim-bg {
+    position: absolute;
+    inset: 0;
+  }
+  #result-anim-text {
+    position: relative;
+    z-index: 1;
+    font-size: clamp(52px, 9vw, 96px);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
+    animation: resultTextPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  #result-anim-sub {
+    position: relative;
+    z-index: 1;
+    font-size: clamp(18px, 3vw, 32px);
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    text-align: center;
+    opacity: 0;
+    animation: resultSubFade 0.6s ease 0.4s forwards;
+  }
+  @keyframes resultTextPop {
+    0% { transform: scale(0.2) rotate(-8deg); opacity: 0; }
+    70% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  @keyframes resultSubFade {
+    0% { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  #confetti-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    opacity: 0;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0%   { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(110vh) rotate(720deg) scale(0.5); }
+  }
+
+  /* Level editor button */
+  .btn-level-editor { background: #1abc9c; color: #fff; }
+  .btn {
+    padding: 10px 18px; border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: transform 0.1s;
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  .btn:hover { transform: scale(1.05); }
+  .btn:active { transform: scale(0.95); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+  .btn-restart { background: #f39c12; color: #fff; }
+  .btn-quit { background: #7f8c8d; color: #fff; }
+  #level-select, #end-screen {
+    padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  }
+
+  /* ── Portrait rotation overlay ── */
+  #rotate-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: #0d1b2a;
+    z-index: 9999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    color: #ecf0f1;
+    font-size: 18px;
+    text-align: center;
+    padding: 30px;
+  }
+  #rotate-overlay .rotate-icon {
+    font-size: 64px;
+    animation: rotateHint 2s ease-in-out infinite;
+  }
+  @keyframes rotateHint {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-30deg); }
+    75% { transform: rotate(30deg); }
+  }
+
+  /* ── Mobile responsive adjustments ── */
+  @media (max-width: 768px), (max-height: 500px) {
+    .btn {
+      padding: 12px 16px;
+      font-size: 14px;
+      border-radius: 10px;
+      min-height: 48px;
+    }
+    #ui-overlay {
+      top: calc(var(--safe-top) + 6px); right: calc(var(--safe-right) + 6px); gap: 6px;
+    }
+  }
+
+  @media (orientation: portrait) and (max-width: 768px) {
+    #rotate-overlay { display: flex !important; }
+    #gameCanvas, #ui-overlay, #level-select, #end-screen { display: none !important; }
+  }
+  @media (orientation: landscape) {
+    #rotate-overlay { display: none !important; }
+  }
+  #end-screen {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none; justify-content: center; align-items: center;
+    flex-direction: column; gap: 20px; z-index: 100;
+  }
+  #end-screen.show { display: flex; }
+  #end-screen h1 { font-size: 52px; text-shadow: 0 0 20px currentColor; }
+  #end-screen .btn { font-size: 18px; padding: 12px 32px; margin: 5px; }
+  .win-text { color: #2ecc71; }
+  .lose-text { color: #e74c3c; }
+  /* ── Grade badge ── */
+  #grade-display {
+    display: none; text-align: center;
+    margin-top: -10px;
+  }
+  #grade-display .grade-letter {
+    font-size: 72px; font-weight: 900;
+    text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+    line-height: 1;
+    animation: gradePopIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #grade-display .grade-label {
+    font-size: 14px; color: #95a5a6; margin-top: 2px;
+  }
+  .grade-S { color: #f1c40f; }
+  .grade-A { color: #2ecc71; }
+  .grade-B { color: #3498db; }
+  .grade-C { color: #9b59b6; }
+  .grade-D { color: #7f8c8d; }
+  #end-screen-stats {
+    display: none;
+    width: min(820px, 94vw);
+    max-height: 42vh;
+    overflow: auto;
+    padding: 18px;
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at top left, rgba(241,196,15,0.14), transparent 34%),
+      radial-gradient(circle at top right, rgba(52,152,219,0.16), transparent 30%),
+      linear-gradient(180deg, rgba(21, 37, 59, 0.96), rgba(10, 17, 28, 0.92));
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 22px 60px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  #end-screen-stats.show { display: block; }
+  .end-stats-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .end-stats-title {
+    color: #f8fafc;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .end-stats-subtitle {
+    color: #9fb3c8;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+  }
+  .end-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .end-stat-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.05);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    animation: gradePopIn 0.35s ease;
+  }
+  .end-stat-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.06), transparent);
+    transform: translateX(-120%);
+    animation: endStatShine 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .end-stat-card.tone-gold { background: linear-gradient(135deg, rgba(241,196,15,0.16), rgba(255,255,255,0.05)); }
+  .end-stat-card.tone-red { background: linear-gradient(135deg, rgba(231,76,60,0.18), rgba(255,255,255,0.05)); }
+  .end-stat-card.tone-blue { background: linear-gradient(135deg, rgba(52,152,219,0.18), rgba(255,255,255,0.05)); }
+  .end-stat-card.tone-green { background: linear-gradient(135deg, rgba(46,204,113,0.18), rgba(255,255,255,0.05)); }
+  .end-stat-card.tone-purple { background: linear-gradient(135deg, rgba(155,89,182,0.18), rgba(255,255,255,0.05)); }
+  .end-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: rgba(255,255,255,0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 18px rgba(0,0,0,0.18);
+  }
+  .end-stat-copy { min-width: 0; }
+  .end-stat-label {
+    color: #c7d2de;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+  .end-stat-value {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .end-stat-score {
+    padding: 8px 11px;
+    border-radius: 999px;
+    background: rgba(9,14,23,0.45);
+    color: #f8fafc;
+    font-size: 18px;
+    font-weight: 900;
+    min-width: 54px;
+    text-align: center;
+  }
+  .end-history-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .end-history-title {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .end-history-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .end-history-entry {
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.045);
+  }
+  .end-history-entry.win { box-shadow: inset 3px 0 0 #2ecc71; }
+  .end-history-entry.loss { box-shadow: inset 3px 0 0 #e74c3c; }
+  .end-history-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .end-history-result {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .end-history-date {
+    color: #9fb3c8;
+    font-size: 11px;
+  }
+  .end-history-meta {
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .end-history-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .end-history-tag {
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: #d7e0ea;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .end-history-empty {
+    color: #9fb3c8;
+    font-size: 13px;
+  }
+  @keyframes endStatShine {
+    0%, 68%, 100% { transform: translateX(-120%); }
+    82% { transform: translateX(120%); }
+  }
+  @keyframes gradePopIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @media (max-height: 500px) {
+    #end-screen h1 { font-size: 32px; }
+    #end-screen .btn { font-size: 15px; padding: 10px 24px; }
+    #end-screen { gap: 12px; }
+    #grade-display .grade-letter { font-size: 48px; }
+    #end-screen-stats { max-height: 34vh; padding: 12px 14px; }
+    .end-stats-title { font-size: 14px; }
+    .end-stats-subtitle { font-size: 11px; }
+    .end-stat-card { padding: 11px; gap: 10px; }
+    .end-stat-icon { width: 40px; height: 40px; font-size: 20px; }
+    .end-stat-label { font-size: 10px; }
+    .end-stat-value { font-size: 15px; }
+    .end-stat-score { font-size: 15px; min-width: 46px; }
+    .end-history-entry { padding: 10px; }
+  }
+  @media (pointer: coarse) and (max-height: 500px) {
+    #end-screen {
+      justify-content: flex-start;
+      gap: 8px;
+      padding-top: calc(var(--safe-top) + 8px);
+      padding-bottom: calc(var(--safe-bottom) + 8px);
+    }
+    #end-screen h1 { font-size: 26px; }
+    #end-screen .btn { font-size: 14px; padding: 9px 18px; margin: 3px; }
+    #grade-display { margin-top: -4px; }
+    #grade-display .grade-letter { font-size: 40px; }
+    #grade-display .grade-label { font-size: 12px; }
+    #end-screen-stats {
+      width: min(880px, 96vw);
+      max-height: 48vh;
+      padding: 10px 12px;
+      border-radius: 16px;
+    }
+    .end-stats-header { gap: 6px; margin-bottom: 8px; }
+    .end-stats-title { font-size: 13px; }
+    .end-stats-subtitle { font-size: 10px; }
+    .end-stats-grid { gap: 8px; }
+    .end-stat-card {
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+    }
+    .end-stat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      font-size: 17px;
+    }
+    .end-stat-label {
+      font-size: 9px;
+      margin-bottom: 2px;
+      letter-spacing: 0.05em;
+    }
+    .end-stat-value {
+      font-size: 13px;
+      line-height: 1.05;
+    }
+    .end-stat-score {
+      min-width: 40px;
+      padding: 5px 8px;
+      font-size: 13px;
+    }
+    .end-history-block { margin-top: 10px; padding-top: 8px; }
+    .end-history-title { font-size: 12px; margin-bottom: 6px; }
+    .end-history-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .end-history-entry {
+      padding: 8px;
+      border-radius: 10px;
+    }
+    .end-history-top { margin-bottom: 4px; }
+    .end-history-result { font-size: 11px; }
+    .end-history-date {
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .end-history-meta {
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+    .end-history-tags { gap: 4px; }
+    .end-history-tag {
+      padding: 3px 6px;
+      font-size: 10px;
+    }
+  }
+  @media (max-width: 640px) {
+    .end-stats-grid { grid-template-columns: 1fr; }
+    .end-stats-header { flex-direction: column; align-items: start; }
+    .end-stats-subtitle { text-align: left; }
+  }
+
+  /* ── Level Select Screen ── */
+  #level-select {
+    position: fixed; inset: 0;
+    background:
+      linear-gradient(rgba(8, 14, 24, 0.58), rgba(8, 14, 24, 0.78)),
+      radial-gradient(circle at top, rgba(255,255,255,0.06), transparent 34%),
+      url('img/menu.png') center center / cover no-repeat,
+      #0d1b2a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+    padding: 14px 0 10px;
+    z-index: 200;
+  }
+  #level-select.hidden { display: none; }
+  #level-select h1 {
+    font-size: 42px; color: #f1c40f;
+    text-shadow: 0 0 30px rgba(241,196,15,0.4);
+    margin-bottom: 8px; letter-spacing: 2px;
+  }
+  .main-logo-wrap {
+    width: min(620px, 88vw);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .main-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 160px;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.38));
+  }
+  #level-select .subtitle {
+    color: #d8e1ea; font-size: 15px; margin-bottom: 10px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.42);
+  }
+  .level-select-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .level-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px; max-width: 560px; width: 92%;
+  }
+  .level-select-actions,
+  .level-grid,
+  .main-logo-wrap,
+  #level-select .subtitle {
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-height: 500px) {
+    .level-grid {
+      grid-template-columns: repeat(10, 1fr);
+      gap: 5px; max-width: 90%;
+    }
+    #level-select { padding: 8px 0 6px; }
+    #level-select h1 { font-size: 22px; margin-bottom: 2px; }
+    .main-logo-wrap { width: min(360px, 80vw); margin-bottom: 0; }
+    .main-logo { max-height: 60px; }
+    #level-select .subtitle { font-size: 11px; margin-bottom: 6px; }
+    .level-select-actions { margin-top: 6px; gap: 6px; }
+  }
+  @media (max-width: 480px) {
+    .level-grid {
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+  }
+  .level-card {
+    position: relative;
+    width: 100%; aspect-ratio: 1;
+    border-radius: 12px;
+    display: flex;
+    align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 2px solid transparent;
+    user-select: none;
+    overflow: hidden;
+  }
+  @media (max-height: 500px) {
+    .level-card {
+      font-size: 12px;
+      border-radius: 6px;
+    }
+    .level-card .card-num { font-size: 14px; }
+    .level-card .card-lock { font-size: 10px; }
+    .level-card .card-check { font-size: 8px; }
+    .level-card .card-badge { font-size: 7px; }
+  }
+  .level-card.unlocked {
+    background: linear-gradient(135deg, #1e3a5f, #1b2838);
+    color: #ecf0f1; border-color: #2c3e50;
+  }
+  .level-card.unlocked:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 18px rgba(52,152,219,0.5);
+    border-color: #3498db;
+  }
+  .level-card.completed {
+    background: linear-gradient(135deg, #1a5032, #0d1b2a);
+    color: #2ecc71; border-color: #27ae60;
+  }
+  .level-card.completed:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 18px rgba(46,204,113,0.5);
+  }
+  .level-card.locked {
+    background: linear-gradient(135deg, #1a1a2e, #0d1b2a);
+    color: #3d3d5c; border-color: #1a1a2e;
+    cursor: not-allowed;
+  }
+  .level-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(140deg, rgba(255,255,255,0.06), transparent 44%, rgba(255,255,255,0.02));
+    pointer-events: none;
+  }
+  .level-card .card-num {
+    font-size: 22px; line-height: 1;
+    position: relative; z-index: 1;
+  }
+  .level-card .card-check {
+    position: absolute; top: 3px; right: 4px;
+    font-size: 11px; color: #2ecc71; z-index: 1;
+  }
+  .level-card .card-badge {
+    position: absolute; top: 2px; right: 3px;
+    font-size: 10px; font-weight: 900; z-index: 1;
+  }
+  .level-card .card-lock {
+    position: absolute; bottom: 3px; right: 4px;
+    font-size: 13px; opacity: 0.35; z-index: 1;
+  }
+
+
+  #level-intro {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1400;
+  }
+  #level-intro.show { display: flex; }
+  #level-intro .intro-title {
+    position: relative;
+    z-index: 2;
+    max-width: min(76vw, 860px);
+    padding: 18px 28px;
+    border-radius: 999px;
+    background: rgba(8, 15, 24, 0.55);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #f8fafc;
+    font-size: clamp(24px, 4vw, 52px);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.86);
+    text-shadow: 0 0 24px rgba(255,255,255,0.16), 0 0 40px rgba(241,196,15,0.18);
+    transition: opacity 0.56s ease, transform 0.76s ease;
+  }
+  #level-intro.show .intro-title {
+    opacity: 1;
+    transform: scale(1);
+  }
+  #level-intro.open .intro-title {
+    opacity: 0;
+    transform: scale(1.1);
+    transition-delay: 0.68s;
+  }
+  @media (max-width: 768px), (max-height: 500px) {
+    #level-intro .intro-title {
+      max-width: 86vw;
+      padding: 12px 16px;
+      letter-spacing: 0.04em;
+    }
+  }
+  .level-card {
+    touch-action: manipulation;
+  }
+
+  /* ── Country Introduction Overlay ── */
+  #country-intro {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.74);
+    pointer-events: none;
+  }
+  #country-intro.show { display: flex; }
+  #country-intro-label {
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  #country-intro-text {
+    font-size: clamp(32px, 6vw, 72px);
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-shadow: 0 0 30px rgba(52,152,219,0.7), 0 0 60px rgba(52,152,219,0.35);
+    opacity: 0;
+    animation: countryIntroNameIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s forwards;
+  }
+  @keyframes countryIntroNameIn {
+    0%   { opacity: 0; transform: scale(0.5) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div style="position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;text-align:center;font-weight:bold;font-family:sans-serif;font-size:13px;padding:4px;z-index:99999;letter-spacing:1px;">🔧 MODE ADMIN — tous les niveaux débloqués</div>
+<div style="height:25px"></div>
+
+
+
+<!-- Rotate device overlay -->
+<div id="rotate-overlay">
+  <div class="rotate-icon">📱</div>
+  <div id="rotate-msg"></div>
+</div>
+
+<!-- Level Select Screen -->
+<div id="level-select">
+  <h1 id="main-title" class="main-logo-wrap">
+    <img src="img/NWlogo.png" alt="Nation Wars" class="main-logo" id="main-logo">
+  </h1>
+  <div class="subtitle" id="main-subtitle"></div>
+  <div class="level-grid" id="level-grid"></div>
+  <div class="level-select-actions">
+    <button class="btn btn-install-app" onclick="installApp()" id="btn-install-app" style="display:none"></button>
+  </div>
+</div>
+
+<!-- Country Introduction Overlay -->
+<div id="country-intro" aria-hidden="true">
+  <div id="country-intro-label"></div>
+  <div id="country-intro-text"></div>
+</div>
+
+<div id="level-intro" aria-hidden="true">
+  <div class="intro-title" id="level-intro-title"></div>
+</div>
+
+<div id="bg-map"></div>
+<canvas id="gameCanvas" width="900" height="600"></canvas>
+
+<!-- Left side panel: army bar + live stats -->
+<div id="left-panel">
+  <div id="hud-level-title"></div>
+  <div id="hud-army-bar">
+    <div id="hud-army-bar-row"></div>
+    <div id="hud-army-entries"></div>
+  </div>
+  <div id="hud-live-stat">
+    <div id="hud-live-stat-label"></div>
+    <div id="hud-live-stat-value"></div>
+    <div id="hud-live-stat-score"></div>
+  </div>
+</div>
+
+<!-- Right side panel: pause button -->
+<div id="right-panel">
+  <button id="btn-pause-side" onclick="togglePause()" title="Pause">⏸</button>
+</div>
+
+<!-- Pause overlay -->
+<div id="pause-overlay">
+  <div id="pause-overlay-icon">⏸</div>
+  <div id="pause-overlay-text">PAUSE</div>
+  <div id="pause-overlay-hint">Appuyez pour reprendre</div>
+  <button class="btn" style="background:#2980b9;color:#fff;margin-top:8px;pointer-events:all" onclick="togglePause()">▶ Reprendre</button>
+</div>
+
+<!-- Victory / Defeat animation overlay -->
+<div id="result-anim">
+  <div id="result-anim-bg"></div>
+  <div id="confetti-container"></div>
+  <div id="result-anim-text"></div>
+  <div id="result-anim-sub"></div>
+</div>
+
+<div id="ui-overlay">
+  <button class="btn btn-quit" onclick="showLevelSelect()" id="btn-menu"></button>
+</div>
+
+<div id="end-screen">
+  <h1 id="end-title"></h1>
+  <div id="grade-display">
+    <div class="grade-letter" id="grade-letter"></div>
+    <div class="grade-label" id="grade-label"></div>
+  </div>
+  <div>
+    <button class="btn btn-restart" onclick="restartGame()" id="end-btn-retry"></button>
+    <button class="btn" id="end-btn-next" style="display:none;background:#2ecc71;color:#fff" onclick="nextLevel()"></button>
+  </div>
+</div>
+
+<script>
+// ── Mobile debug: catch all errors ──
+window.onerror = function(msg, url, line, col, error) {
+  alert("ERREUR JS\n" + msg + "\nFichier: " + url + "\nLigne: " + line + (col ? " Col: " + col : "") + (error && error.stack ? "\n\nStack:\n" + error.stack : ""));
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e) {
+  alert("PROMISE REJETÉE\n" + (e.reason && e.reason.message ? e.reason.message : e.reason) + (e.reason && e.reason.stack ? "\n\nStack:\n" + e.reason.stack : ""));
+});
+</script>
+<script src="i18n.js"></script>
+<script src="levels.js"></script>
+<script src="wytopia-sdk/wytopia-sdk.js"></script>
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+function createStorageAdapter() {
+  try {
+    const testKey = '__nw2_storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch (_) {
+    const memoryStore = new Map();
+    return {
+      getItem(key) {
+        return memoryStore.has(key) ? memoryStore.get(key) : null;
+      },
+      setItem(key, value) {
+        memoryStore.set(key, String(value));
+      },
+      removeItem(key) {
+        memoryStore.delete(key);
+      }
+    };
+  }
+}
+
+const storage = createStorageAdapter();
+
+// ── SFX (musique désactivée — volume SFX fixe 50%) ──
+const sfxVolume = 0.5;
+let fxAudioContext = null;
+let fxMasterGain = null;
+let lastBlopTime = 0;
+
+function ensureFxAudio() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!fxAudioContext) {
+    fxAudioContext = new AudioCtx();
+    fxMasterGain = fxAudioContext.createGain();
+    fxMasterGain.gain.value = 0.18 * sfxVolume;
+    fxMasterGain.connect(fxAudioContext.destination);
+  }
+  if (fxAudioContext.state === 'suspended') {
+    fxAudioContext.resume().catch(() => {});
+  }
+  return fxAudioContext;
+}
+
+function playCandyBlop() {
+  if (sfxVolume <= 0) return;
+  const ctx = ensureFxAudio();
+  if (!ctx || !fxMasterGain) return;
+
+  const now = ctx.currentTime;
+  if (now - lastBlopTime < 0.035) return;
+  lastBlopTime = now;
+
+  const oscA = ctx.createOscillator();
+  const oscB = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  const variant = Math.random();
+  const waveA = variant < 0.33 ? 'triangle' : (variant < 0.66 ? 'sine' : 'square');
+  const waveB = variant < 0.5 ? 'sine' : 'triangle';
+  const attackTime = 0.008 + Math.random() * 0.012;
+  const decayTime = 0.09 + Math.random() * 0.08;
+  const gainPeak = 0.14 + Math.random() * 0.1;
+
+  oscA.type = waveA;
+  oscB.type = waveB;
+  const baseFreq = 360 + Math.random() * 160;
+  oscA.frequency.setValueAtTime(baseFreq, now);
+  oscA.frequency.exponentialRampToValueAtTime(baseFreq * (0.52 + Math.random() * 0.16), now + decayTime);
+  oscB.frequency.setValueAtTime(baseFreq * (1.55 + Math.random() * 0.7), now);
+  oscB.frequency.exponentialRampToValueAtTime(baseFreq * (0.95 + Math.random() * 0.35), now + decayTime * 0.7);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1400 + Math.random() * 1200, now);
+  filter.Q.value = 1.1 + Math.random() * 1.4;
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(gainPeak, now + attackTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + decayTime + 0.04);
+
+  oscA.connect(gain);
+  oscB.connect(gain);
+  gain.connect(filter);
+  filter.connect(fxMasterGain);
+
+  oscA.start(now);
+  oscB.start(now);
+  oscA.stop(now + decayTime + 0.06);
+  oscB.stop(now + decayTime + 0.06);
+}
+
+// ── Tutorial (toujours actif en mode enfant) ──
+const tutorialEnabled = true;
+function shouldShowTutorial() {
+  return currentLevel === 1;
+}
+
+// Initialiser l'audio SFX au premier clic utilisateur
+document.addEventListener('click', function _initSfx() {
+  ensureFxAudio();
+  document.removeEventListener('click', _initSfx);
+}, { once: true });
+document.addEventListener('touchstart', function _initSfxT() {
+  ensureFxAudio();
+  document.removeEventListener('touchstart', _initSfxT);
+}, { once: true });
+
+function togglePause() {
+  if (gameState === 'playing') {
+    gameState = 'paused';
+    pauseStartTime = performance.now();
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.classList.add('show');
+    const btn = document.getElementById('btn-pause-side');
+    if (btn) btn.textContent = '▶';
+  } else if (gameState === 'paused') {
+    // Adjust levelStartTime so pause duration doesn't count
+    levelStartTime += performance.now() - pauseStartTime;
+    gameState = 'playing';
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.classList.remove('show');
+    const btn = document.getElementById('btn-pause-side');
+    if (btn) btn.textContent = '⏸';
+  }
+}
+
+const CONFIG = {
+  baseRate: 1.0,        // units/sec base
+  travelSpeed: 125,     // px/sec (ralenti x2)
+  minGarrison: 1,
+  particleK: 5,
+  minParticles: 6,
+  maxParticles: 40,
+  tierMultipliers: [0, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5], // index 0 unused, tiers 1-6
+  ai: {
+    thinkInterval: 1.2,
+    minUnitsToAttack: 12,
+    focusPlayerWeight: 0.6
+  }
+};
+
+// Per-level AI config (from GDD §8.4) – per-AI difficulty
+function getLevelAI(aiId) {
+  const lvl = LEVELS[currentLevel];
+  if (lvl && lvl.ai) {
+    // New per-AI format: ai[1], ai[2], etc.
+    if (lvl.ai[aiId]) return lvl.ai[aiId];
+    // Fallback old format (single config)
+    if (lvl.ai.difficulty !== undefined) return lvl.ai;
+  }
+  return CONFIG.ai; // fallback
+}
+
+// Per-level troop travel speed
+function getLevelTravelSpeed() {
+  const lvl = LEVELS[currentLevel];
+  if (lvl && lvl.travelSpeed) return lvl.travelSpeed;
+  return CONFIG.travelSpeed; // fallback 125 px/s
+}
+
+const COLORS = {
+  sea: '#1b2838',
+  seaLight: '#1e3a5f',
+  player: '#3498db',
+  playerLight: '#5dade2',
+  ai: '#e74c3c',
+  aiLight: '#ec7063',
+  ai2: '#8e44ad',
+  ai2Light: '#a569bd',
+  ai3: '#e67e22',
+  ai3Light: '#f0a04b',
+  ai4: '#27ae60',
+  ai4Light: '#52be80',
+  ai5: '#1abc9c',
+  ai5Light: '#76d7c4',
+  ai6: '#f39c12',
+  ai6Light: '#f5b041',
+  ai7: '#d81b60',
+  ai7Light: '#f06292',
+  ai8: '#546e7a',
+  ai8Light: '#90a4ae',
+  ai9: '#00838f',
+  ai9Light: '#26c6da',
+  ai10: '#5d4037',
+  ai10Light: '#a1887f',
+  neutral: '#7f8c8d',
+  neutralLight: '#95a5a6',
+  border: '#d5d8dc',
+  selectedGlow: '#f1c40f',
+  text: '#ffffff',
+  nodeBg: '#ffffff',
+  nodeShadow: 'rgba(0,0,0,0.4)'
+};
+
+let currentLevel = 1;
+var wytopia = null; // Wytopia SDK instance (initialised in init())
+
+// ============================================================
+// SAVE SYSTEM — Multi-slot with localStorage
+// ============================================================
+const SAVES_KEY = 'nw2_saves';     // stores all slots
+const ACTIVE_KEY = 'nw2_active';   // index of active slot (0-4)
+const NUM_SLOTS = 5;
+const SAVE_VERSION = 3;
+
+function getDefaultSave() {
+  return {
+    version: SAVE_VERSION,
+    name: '',
+    completedLevels: [],
+    levelStats: {},
+    levelHistory: {},
+    levelMedals: {},
+    totalWins: 0,
+    totalLosses: 0,
+    createdAt: new Date().toISOString(),
+    lastSavedAt: new Date().toISOString()
+  };
+}
+
+// Load all slots from localStorage
+function loadAllSlots() {
+  try {
+    const raw = storage.getItem(SAVES_KEY);
+    if (raw) {
+      const slots = JSON.parse(raw);
+      // Fix Infinity lost through JSON serialization (becomes null)
+      for (const slot of slots) {
+        if (slot && slot.levelStats) {
+          for (const key of Object.keys(slot.levelStats)) {
+            const st = slot.levelStats[key];
+            if (st && (st.bestTime === null || st.bestTime === undefined)) st.bestTime = 99999;
+          }
+        }
+        if (slot && !slot.levelHistory) slot.levelHistory = {};
+        if (slot && !slot.levelMedals) slot.levelMedals = {};
+      }
+      return slots;
+    }
+
+    // Migrate from old single-save format
+    const oldSingle = storage.getItem('nw2_save');
+    const oldCompleted = storage.getItem('nw2_completed');
+    if (oldSingle || oldCompleted) {
+      const slots = new Array(NUM_SLOTS).fill(null);
+      if (oldSingle) {
+        const old = JSON.parse(oldSingle);
+        slots[0] = { ...getDefaultSave(), ...old, version: SAVE_VERSION, name: T('saveMigrated') };
+      } else if (oldCompleted) {
+        const lvls = JSON.parse(oldCompleted);
+        const s = getDefaultSave();
+        s.completedLevels = lvls;
+        s.totalWins = lvls.length;
+        s.name = T('saveMigrated');
+        slots[0] = s;
+      }
+      storage.removeItem('nw2_save');
+      storage.removeItem('nw2_completed');
+      storage.setItem(SAVES_KEY, JSON.stringify(slots));
+      storage.setItem(ACTIVE_KEY, '0');
+      return slots;
+    }
+  } catch (e) {
+    console.warn('Save load error:', e);
+  }
+  return new Array(NUM_SLOTS).fill(null);
+}
+
+function saveAllSlots(slots) {
+  storage.setItem(SAVES_KEY, JSON.stringify(slots));
+}
+
+function getActiveSlotIndex() {
+  const idx = parseInt(storage.getItem(ACTIVE_KEY) || '-1');
+  return (idx >= 0 && idx < NUM_SLOTS) ? idx : -1;
+}
+
+function setActiveSlotIndex(idx) {
+  storage.setItem(ACTIVE_KEY, String(idx));
+}
+
+// Current live save data
+let saveSlots = loadAllSlots();
+let activeSlot = getActiveSlotIndex();
+let saveData = activeSlot >= 0 && saveSlots[activeSlot]
+  ? { ...getDefaultSave(), ...saveSlots[activeSlot] }
+  : getDefaultSave();
+let completedLevels = saveData.completedLevels;
+let levelStartTime = 0;
+
+// Write current data back to the active slot
+function saveToActiveSlot() {
+  if (activeSlot < 0) return; // no active slot, nothing to persist
+  saveData.completedLevels = completedLevels;
+  saveData.lastSavedAt = new Date().toISOString();
+  saveSlots[activeSlot] = { ...saveData };
+  saveAllSlots(saveSlots);
+}
+
+function saveProgress() {
+  saveData.completedLevels = completedLevels;
+  saveToActiveSlot();
+}
+
+// ── Grade system ──
+const GRADE_ORDER = ['S', 'A', 'B', 'C', 'D'];
+const GRADE_COLORS = { S: '#f1c40f', A: '#2ecc71', B: '#3498db', C: '#9b59b6', D: '#7f8c8d' };
+
+function calculateGrade(lvl, durationSeconds) {
+  const level = LEVELS[lvl];
+  const g = level && level.grades ? level.grades : { S: 30, A: 60, B: 90, C: 120 };
+  if (durationSeconds <= g.S) return 'S';
+  if (durationSeconds <= g.A) return 'A';
+  if (durationSeconds <= g.B) return 'B';
+  if (durationSeconds <= g.C) return 'C';
+  return 'D';
+}
+
+function recordLevelWin(lvl, duration) {
+  saveData.totalWins++;
+  if (!saveData.levelStats[lvl]) {
+    saveData.levelStats[lvl] = { wins: 0, bestTime: 99999, bestGrade: 'D', lastPlayed: null };
+  }
+  const stats = saveData.levelStats[lvl];
+  stats.wins++;
+  stats.lastPlayed = new Date().toISOString();
+  if (duration < stats.bestTime) {
+    stats.bestTime = Math.round(duration * 10) / 10;
+  }
+  // Update best grade
+  const grade = calculateGrade(lvl, duration);
+  if (GRADE_ORDER.indexOf(grade) < GRADE_ORDER.indexOf(stats.bestGrade || 'D')) {
+    stats.bestGrade = grade;
+  }
+  saveProgress();
+}
+
+function recordLevelLoss(lvl) {
+  saveData.totalLosses++;
+  if (!saveData.levelStats[lvl]) {
+    saveData.levelStats[lvl] = { wins: 0, bestTime: 99999, lastPlayed: null };
+  }
+  saveData.levelStats[lvl].lastPlayed = new Date().toISOString();
+  saveProgress();
+}
+
+function saveLevelRunHistory(lvl, entry) {
+  if (!saveData.levelHistory) saveData.levelHistory = {};
+  const history = Array.isArray(saveData.levelHistory[lvl]) ? saveData.levelHistory[lvl] : [];
+  history.unshift(entry);
+  saveData.levelHistory[lvl] = history.slice(0, 8);
+}
+
+function getLevelRunHistory(lvl) {
+  if (!saveData.levelHistory) return [];
+  return Array.isArray(saveData.levelHistory[lvl]) ? saveData.levelHistory[lvl] : [];
+}
+
+function getLevelMedals(lvl) {
+  if (!saveData.levelMedals) return [];
+  return Array.isArray(saveData.levelMedals[lvl]) ? saveData.levelMedals[lvl] : [];
+}
+
+function saveLevelMedals(lvl, medals) {
+  if (!saveData.levelMedals) saveData.levelMedals = {};
+  const existing = new Set(getLevelMedals(lvl));
+  for (const medal of medals) existing.add(medal);
+  saveData.levelMedals[lvl] = Array.from(existing);
+}
+
+function getMedalDefinitions() {
+  return {
+    blitz: { icon: '⚡', labelKey: 'medalBlitz' },
+    dominator: { icon: '👑', labelKey: 'medalDominator' },
+    ironWall: { icon: '🛡️', labelKey: 'medalIronWall' },
+    conqueror: { icon: '🚩', labelKey: 'medalConqueror' }
+  };
+}
+
+function getRunMedals(won, duration, grade, stats) {
+  if (!won) return [];
+  const medals = [];
+  const statIds = new Set((stats || []).map(stat => stat.id));
+  if (grade === 'S' || duration <= 45) medals.push('blitz');
+  if (statIds.has('largestArmy') && statIds.has('topAttacker')) medals.push('dominator');
+  if (statIds.has('topDefender') || statIds.has('fortress')) medals.push('ironWall');
+  if (statIds.has('conqueror')) medals.push('conqueror');
+  return medals;
+}
+
+
+function createCountries() {
+  const lvl = LEVELS[currentLevel];
+  // Deep copy so original data isn't mutated
+  return lvl.countries.map(c => {
+    const copy = {
+      ...c,
+      center: { ...c.center },
+      path: c.path.map(p => [...p])
+    };
+    // Apply player's country choice: selected country → ownerId 0
+    if (playerChosenCountryId && c.id === playerChosenCountryId) {
+      copy.ownerId = 0;
+    }
+    return copy;
+  });
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let canvas, ctx;
+const LOGICAL_CANVAS_WIDTH = 900;
+const LOGICAL_CANVAS_HEIGHT = 600;
+const MAX_RENDER_SCALE = 2;
+let countries = [];
+let transfers = [];
+let selectedCountryId = null;
+let mousePos = { x: 0, y: 0 };
+let gameState = 'playing'; // 'playing', 'won', 'lost', 'paused'
+let pauseStartTime = 0; // timestamp when pause began
+let aiTimers = {}; // per-AI timers: { 1: 0, 2: 0, ... }
+let openingAIAttackDone = {};
+let lastTime = 0;
+let hoverCountryId = null;
+let impactEffects = [];  // clash spark effects
+let conquestAnims = [];  // conquest celebration effects
+let mapImage = null;     // SVG map background
+
+// ── Pinch-to-zoom state ──
+let viewZoom = 1;
+let viewOffsetX = 0;
+let viewOffsetY = 0;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 3;
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+let pinchMidX = 0;
+let pinchMidY = 0;
+let isPinching = false;
+let levelTelemetry = createLevelTelemetry();
+let deferredInstallPrompt = null;
+
+function createLevelTelemetry() {
+  return {
+    nextAttackId: 1,
+    attacks: {},
+    attacksByOwner: {},
+    incomingAttacksByOwner: {},
+    defendedByOwner: {},
+    attackedByCountry: {},
+    defendedByCountry: {},
+    conquestsByOwner: {},
+    peakArmyByOwner: {},
+    peakUnitsByCountry: {}
+  };
+}
+
+function addCount(store, key, amount = 1) {
+  if (key === undefined || key === null) return;
+  store[key] = (store[key] || 0) + amount;
+}
+
+function setPeak(store, key, value) {
+  if (key === undefined || key === null) return;
+  store[key] = Math.max(store[key] || 0, value);
+}
+
+function computeArmyTotals() {
+  const armyTotals = {};
+  for (const c of countries) {
+    if (armyTotals[c.ownerId] === undefined) armyTotals[c.ownerId] = 0;
+    armyTotals[c.ownerId] += Math.floor(c.unitsPrecise);
+  }
+  for (const tr of transfers) {
+    if (!tr.arrived && typeof tr.ownerId !== 'undefined') {
+      if (armyTotals[tr.ownerId] === undefined) armyTotals[tr.ownerId] = 0;
+      armyTotals[tr.ownerId] += tr.units;
+    }
+  }
+  return armyTotals;
+}
+
+function updateLevelTelemetrySnapshot() {
+  const armyTotals = computeArmyTotals();
+  for (const [ownerId, total] of Object.entries(armyTotals)) {
+    setPeak(levelTelemetry.peakArmyByOwner, ownerId, Math.round(total));
+  }
+  for (const c of countries) {
+    setPeak(levelTelemetry.peakUnitsByCountry, c.id, Math.floor(c.unitsPrecise));
+  }
+}
+
+function registerAttackWave(source, target) {
+  const attackId = levelTelemetry.nextAttackId++;
+  const isAttack = target.ownerId !== source.ownerId;
+  levelTelemetry.attacks[attackId] = {
+    id: attackId,
+    ownerId: source.ownerId,
+    fromId: source.id,
+    toId: target.id,
+    targetOwnerId: target.ownerId,
+    remainingParticles: 0,
+    wasAttack: isAttack,
+    conquered: false,
+    conquestCounted: false
+  };
+
+  if (isAttack) {
+    addCount(levelTelemetry.attacksByOwner, source.ownerId);
+    addCount(levelTelemetry.attackedByCountry, target.id);
+    if (target.ownerId >= 0) addCount(levelTelemetry.incomingAttacksByOwner, target.ownerId);
+  }
+
+  return attackId;
+}
+
+function finalizeAttackWave(attackId, target) {
+  const attack = levelTelemetry.attacks[attackId];
+  if (!attack) return;
+
+  if (
+    attack.wasAttack &&
+    !attack.conquered &&
+    target &&
+    target.ownerId === attack.targetOwnerId &&
+    attack.targetOwnerId >= 0
+  ) {
+    addCount(levelTelemetry.defendedByOwner, attack.targetOwnerId);
+    addCount(levelTelemetry.defendedByCountry, attack.toId);
+  }
+
+  delete levelTelemetry.attacks[attackId];
+}
+
+function pickStatEntry(keys, getter, wantMin = false, minValue = null) {
+  let bestKey = null;
+  let bestValue = wantMin ? Infinity : -Infinity;
+  for (const key of keys) {
+    const value = getter(key);
+    if (minValue !== null && value < minValue) continue;
+    if ((wantMin && value < bestValue) || (!wantMin && value > bestValue)) {
+      bestKey = key;
+      bestValue = value;
+    }
+  }
+  if (bestKey === null) return null;
+  return { key: bestKey, value: bestValue };
+}
+
+function getOwnerStatName(ownerId) {
+  const ownerNum = Number(ownerId);
+  const labels = {
+    fr: { player: 'Joueur', ai: 'IA', neutral: 'Neutre' },
+    en: { player: 'Player', ai: 'AI', neutral: 'Neutral' },
+    es: { player: 'Jugador', ai: 'IA', neutral: 'Neutral' },
+    de: { player: 'Spieler', ai: 'KI', neutral: 'Neutral' },
+    pt: { player: 'Jogador', ai: 'IA', neutral: 'Neutro' }
+  };
+  const words = labels[LANG] || labels.fr;
+  if (ownerNum < 0) return words.neutral;
+  if (ownerNum === 0) return words.player;
+  return words.ai + ' ' + ownerNum;
+}
+
+function getStatEntityName(kind, key) {
+  return kind === 'country' ? TCountry(key) : getOwnerStatName(key);
+}
+
+function buildLiveHudHighlights(armyTotals) {
+  const countryIds = countries.map(c => c.id);
+  const ownerIds = [...new Set(countries.map(c => c.ownerId).filter(ownerId => ownerId >= 0))].sort((a, b) => a - b);
+  const currentArmies = armyTotals || computeArmyTotals();
+
+  const liveDefinitions = [
+    {
+      labelKey: 'statLargestArmy',
+      icon: '⚔️',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => currentArmies[id] || 0, false, 1)
+    },
+    {
+      labelKey: 'statStrongestCountry',
+      icon: '👑',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => {
+        const country = countries.find(c => c.id === id);
+        return country ? Math.floor(country.unitsPrecise) : 0;
+      }, false, 1)
+    },
+    {
+      labelKey: 'statTopAttacker',
+      icon: '🔥',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.attacksByOwner[id] || 0, false, 1)
+    },
+    {
+      labelKey: 'statFortress',
+      icon: '🏰',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => levelTelemetry.defendedByCountry[id] || 0, false, 1)
+    },
+    {
+      labelKey: 'statConqueror',
+      icon: '🚩',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.conquestsByOwner[id] || 0, false, 1)
+    }
+  ];
+
+  return liveDefinitions
+    .filter(item => item.entry)
+    .map(item => ({
+      labelKey: item.labelKey,
+      icon: item.icon,
+      kind: item.kind,
+      targetKey: item.entry.key,
+      score: Math.round(item.entry.value)
+    }));
+}
+
+function buildEndScreenStats() {
+  const countryIds = countries.map(c => c.id);
+  const ownerIds = [...new Set(countries.map(c => c.ownerId).filter(ownerId => ownerId >= 0))].sort((a, b) => a - b);
+
+  const statDefinitions = [
+    {
+      id: 'mostAttackedCountry',
+      labelKey: 'statMostAttackedCountry',
+      icon: '🎯',
+      tone: 'red',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => levelTelemetry.attackedByCountry[id] || 0, false, 1)
+    },
+    {
+      id: 'leastAttackedCountry',
+      labelKey: 'statLeastAttackedCountry',
+      icon: '🕊️',
+      tone: 'blue',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => levelTelemetry.attackedByCountry[id] || 0, true, 0)
+    },
+    {
+      id: 'strongestCountry',
+      labelKey: 'statStrongestCountry',
+      icon: '👑',
+      tone: 'gold',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => levelTelemetry.peakUnitsByCountry[id] || 0, false, 0)
+    },
+    {
+      id: 'largestArmy',
+      labelKey: 'statLargestArmy',
+      icon: '⚔️',
+      tone: 'purple',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.peakArmyByOwner[id] || 0, false, 0)
+    },
+    {
+      id: 'topAttacker',
+      labelKey: 'statTopAttacker',
+      icon: '🔥',
+      tone: 'red',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.attacksByOwner[id] || 0, false, 1)
+    },
+    {
+      id: 'topDefender',
+      labelKey: 'statTopDefender',
+      icon: '🛡️',
+      tone: 'green',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.defendedByOwner[id] || 0, false, 1)
+    },
+    {
+      id: 'fortress',
+      labelKey: 'statFortress',
+      icon: '🏰',
+      tone: 'blue',
+      kind: 'country',
+      entry: pickStatEntry(countryIds, id => levelTelemetry.defendedByCountry[id] || 0, false, 1)
+    },
+    {
+      id: 'conqueror',
+      labelKey: 'statConqueror',
+      icon: '🚩',
+      tone: 'gold',
+      kind: 'owner',
+      entry: pickStatEntry(ownerIds, id => levelTelemetry.conquestsByOwner[id] || 0, false, 1)
+    }
+  ];
+
+  return statDefinitions
+    .filter(stat => stat.entry)
+    .map(stat => ({
+      id: stat.id,
+      labelKey: stat.labelKey,
+      icon: stat.icon,
+      tone: stat.tone,
+      kind: stat.kind,
+      targetKey: stat.entry.key,
+      score: Math.round(stat.entry.value)
+    }));
+}
+
+function buildLevelCardTitle(levelNum) {
+  const raw = TLevel(levelNum);
+  const parts = raw.split('—');
+  return parts.length > 1 ? parts.slice(1).join('—').trim() : raw;
+}
+
+function buildLevelCardTooltip(levelNum, medals, history) {
+  const lines = [TLevel(levelNum)];
+  if (medals.length) {
+    const medalDefs = getMedalDefinitions();
+    const medalNames = medals.map(id => medalDefs[id]?.icon + ' ' + T(medalDefs[id]?.labelKey || id));
+    lines.push(T('levelCardMedals') + ': ' + medalNames.join(', '));
+  }
+  if (history[0]) {
+    lines.push(T('levelCardLastRun') + ': ' + (history[0].won ? T('historyWin') : T('historyLoss')));
+  }
+  return lines.join('\n');
+}
+
+function buildMedalGuide() {
+  const title = document.getElementById('medal-guide-title');
+  const subtitle = document.getElementById('medal-guide-subtitle');
+  const grid = document.getElementById('medal-guide-grid');
+  const note = document.getElementById('medal-guide-note');
+  if (!title || !subtitle || !grid || !note) return;
+
+  title.textContent = T('medalGuideTitle');
+  subtitle.textContent = T('medalGuideSubtitle');
+  note.textContent = T('medalGuideVictoryNote');
+
+  const medalDefs = getMedalDefinitions();
+  const medalOrder = ['blitz', 'dominator', 'ironWall', 'conqueror'];
+  grid.innerHTML = medalOrder.map(id => {
+    const medal = medalDefs[id];
+    const descKey = 'medalGuide' + id.charAt(0).toUpperCase() + id.slice(1) + 'Desc';
+    return '<div class="medal-guide-card">'
+      + '<div class="medal-guide-name"><span class="medal-guide-icon">' + medal.icon + '</span>' + T(medal.labelKey) + '</div>'
+      + '<div class="medal-guide-desc">' + T(descKey) + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+let medalGuideOpen = storage.getItem('nw2_medal_guide_open') === '1';
+
+function applyMedalGuideState() {
+  const guide = document.getElementById('medal-guide');
+  const button = document.getElementById('btn-medal-guide');
+  if (guide) guide.classList.toggle('show', medalGuideOpen);
+  if (button) button.textContent = T(medalGuideOpen ? 'medalGuideHide' : 'medalGuideShow');
+}
+
+function toggleMedalGuide() {
+  medalGuideOpen = !medalGuideOpen;
+  storage.setItem('nw2_medal_guide_open', medalGuideOpen ? '1' : '0');
+  applyMedalGuideState();
+}
+
+function formatHistoryDate(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleString(LANG === 'en' ? 'en-US' : 'fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function renderEndScreenStats(stats, won) {
+  const panel = document.getElementById('end-screen-stats');
+  const title = document.getElementById('end-stats-title');
+  const subtitle = document.getElementById('end-stats-subtitle');
+  const list = document.getElementById('end-stats-list');
+
+  title.textContent = T('endStatsTitle');
+  subtitle.textContent = T(won ? 'endStatsSubtitleWin' : 'endStatsSubtitleLose');
+  list.innerHTML = '';
+
+  if (stats.length === 0) {
+    list.innerHTML = '<div class="end-history-empty">' + T('endHistoryEmpty') + '</div>';
+  }
+
+  for (const stat of stats) {
+    const card = document.createElement('div');
+    card.className = 'end-stat-card tone-' + stat.tone;
+
+    const icon = document.createElement('div');
+    icon.className = 'end-stat-icon';
+    icon.textContent = stat.icon;
+
+    const copy = document.createElement('div');
+    copy.className = 'end-stat-copy';
+
+    const label = document.createElement('div');
+    label.className = 'end-stat-label';
+    label.textContent = T(stat.labelKey);
+
+    const value = document.createElement('div');
+    value.className = 'end-stat-value';
+    value.textContent = getStatEntityName(stat.kind, stat.targetKey);
+
+    const score = document.createElement('div');
+    score.className = 'end-stat-score';
+    score.textContent = stat.score;
+
+    copy.appendChild(label);
+    copy.appendChild(value);
+    card.appendChild(icon);
+    card.appendChild(copy);
+    card.appendChild(score);
+    list.appendChild(card);
+  }
+
+  panel.classList.add('show');
+}
+
+function renderEndScreenHistory(levelNum) {
+  const historyBlock = document.getElementById('end-history-block');
+  const historyTitle = document.getElementById('end-history-title');
+  const historyList = document.getElementById('end-history-list');
+  const isCompactLayout = isPhoneViewport();
+  const runs = getLevelRunHistory(levelNum).slice(0, isCompactLayout ? 2 : 4);
+
+  historyTitle.textContent = T('endHistoryTitle');
+  historyList.innerHTML = '';
+
+  if (runs.length === 0) {
+    historyList.innerHTML = '<div class="end-history-empty">' + T('endHistoryEmpty') + '</div>';
+    historyBlock.style.display = 'block';
+    return;
+  }
+
+  for (const run of runs) {
+    const item = document.createElement('div');
+    item.className = 'end-history-entry ' + (run.won ? 'win' : 'loss');
+
+    const top = document.createElement('div');
+    top.className = 'end-history-top';
+
+    const result = document.createElement('div');
+    result.className = 'end-history-result';
+    result.textContent = run.won ? T('historyWin') : T('historyLoss');
+
+    const date = document.createElement('div');
+    date.className = 'end-history-date';
+    date.textContent = formatHistoryDate(run.recordedAt);
+
+    top.appendChild(result);
+    top.appendChild(date);
+
+    const meta = document.createElement('div');
+    meta.className = 'end-history-meta';
+    const parts = [];
+    if (run.duration !== null && run.duration !== undefined) {
+      parts.push(T('historyTimeLabel') + ' ' + formatTime(run.duration));
+    }
+    if (run.grade) {
+      parts.push(T('historyGradeLabel') + ' ' + run.grade);
+    }
+    meta.textContent = parts.join(' · ');
+
+    const tags = document.createElement('div');
+    tags.className = 'end-history-tags';
+    for (const stat of (run.stats || []).slice(0, isCompactLayout ? 1 : 2)) {
+      const tag = document.createElement('div');
+      tag.className = 'end-history-tag';
+      tag.textContent = stat.icon + ' ' + getStatEntityName(stat.kind, stat.targetKey) + ' · ' + stat.score;
+      tags.appendChild(tag);
+    }
+
+    item.appendChild(top);
+    item.appendChild(meta);
+    item.appendChild(tags);
+    historyList.appendChild(item);
+  }
+
+  historyBlock.style.display = 'block';
+}
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+// Apply all i18n texts to static HTML elements
+function applyI18nTexts() {
+  document.getElementById('html-root').lang = LANG;
+  document.getElementById('page-title').textContent = T('pageTitle');
+  document.getElementById('rotate-msg').innerHTML = T('rotateParagraph');
+  const mainTitle = document.getElementById('main-title');
+  const mainLogo = document.getElementById('main-logo');
+  if (mainTitle) mainTitle.setAttribute('aria-label', T('mainTitle'));
+  if (mainLogo) mainLogo.alt = T('mainTitle');
+  document.getElementById('main-subtitle').textContent = T('subtitle');
+  document.getElementById('btn-install-app').textContent = T('btnInstallApp');
+  document.getElementById('btn-menu').textContent = T('btnMenu');
+  applyInstallButtonState();
+}
+
+function init() {
+  canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d', { alpha: false });
+
+  // Apply translations to static UI elements
+  applyI18nTexts();
+  registerServiceWorker();
+
+  // Mouse events
+  canvas.addEventListener('click', handleClick);
+  canvas.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('keydown', handleKeyDown);
+  // Clic droit pour annuler la sélection d'unités
+  canvas.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    if (selectedCountryId) selectedCountryId = null;
+  });
+
+  // Touch events for mobile
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+  canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+  canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+  canvas.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+
+  // Mouse wheel zoom (desktop)
+  canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+  // Prevent context menu on long press
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Responsive canvas sizing
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(resizeCanvas, 100);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeCanvas);
+    window.visualViewport.addEventListener('scroll', resizeCanvas);
+  }
+
+  // Fullscreen on first touch (mobile)
+  if ('ontouchstart' in window) {
+    document.body.addEventListener('touchstart', requestFullscreenOnce, { once: true });
+  }
+
+  // Initialise Wytopia SDK (reads ?level= and ?lang= from URL)
+  wytopia = new WytopiaSDK({ logging: true });
+
+  // When Wytopia decides the game is fully completed
+  wytopia.onGameCompleted(function() {
+    showGameCompletedScreen();
+  });
+
+  // If running inside Wytopia (URL has ?level= param or Vuplex is present),
+  // start at the SDK-provided level directly; otherwise show level select.
+  var hasLevelParam = new URLSearchParams(window.location.search).has('level');
+  if (hasLevelParam || window.vuplex) {
+    var sdkLevel = wytopia.getStartLevel();
+    var safeLevel = (sdkLevel >= 1 && sdkLevel <= MAX_LEVEL && LEVELS[sdkLevel]) ? sdkLevel : 1;
+    startLevel(safeLevel);
+  } else {
+    showLevelSelect();
+  }
+}
+
+// ── Responsive canvas ──
+function resizeCanvas() {
+  const viewport = window.visualViewport;
+  const maxW = Math.max(320, Math.floor(viewport ? viewport.width : window.innerWidth));
+  const maxH = Math.max(220, Math.floor(viewport ? viewport.height : window.innerHeight));
+  const ratio = LOGICAL_CANVAS_WIDTH / LOGICAL_CANVAS_HEIGHT;
+
+  let w, h;
+  if (maxW / maxH > ratio) {
+    // Height-limited
+    h = maxH;
+    w = h * ratio;
+  } else {
+    // Width-limited
+    w = maxW;
+    h = w / ratio;
+  }
+
+  const renderScale = Math.min(window.devicePixelRatio || 1, MAX_RENDER_SCALE);
+  canvas.width = Math.round(LOGICAL_CANVAS_WIDTH * renderScale);
+  canvas.height = Math.round(LOGICAL_CANVAS_HEIGHT * renderScale);
+  ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+
+  canvas.style.width = Math.floor(w) + 'px';
+  canvas.style.height = Math.floor(h) + 'px';
+
+  // Position side panels in the bands beside the canvas
+  const bandLeft = Math.floor((maxW - w) / 2);
+  const bandRight = maxW - Math.floor(w) - bandLeft;
+  const panelTop = Math.floor((maxH - h) / 2);
+  const leftPanel = document.getElementById('left-panel');
+  const rightPanel = document.getElementById('right-panel');
+  const MIN_BAND = 44;
+  if (leftPanel) {
+    if (bandLeft >= MIN_BAND) {
+      leftPanel.style.left = '0px';
+      leftPanel.style.width = bandLeft + 'px';
+      leftPanel.style.top = panelTop + 'px';
+      leftPanel.style.height = Math.floor(h) + 'px';
+      leftPanel.classList.add('visible');
+    } else {
+      leftPanel.classList.remove('visible');
+    }
+  }
+  if (rightPanel) {
+    if (bandRight >= MIN_BAND) {
+      rightPanel.style.right = '0px';
+      rightPanel.style.width = bandRight + 'px';
+      rightPanel.style.top = panelTop + 'px';
+      rightPanel.style.height = Math.floor(h) + 'px';
+      rightPanel.classList.add('visible');
+    } else {
+      rightPanel.classList.remove('visible');
+    }
+  }
+  // Store band widths for HUD drawing decisions
+  window._hudBandLeft = bandLeft;
+  window._hudBandRight = bandRight;
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (!/^https?:$/i.test(window.location.protocol)) return;
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+function applyInstallButtonState() {
+  const installBtn = document.getElementById('btn-install-app');
+  if (!installBtn) return;
+  installBtn.style.display = deferredInstallPrompt ? 'inline-flex' : 'none';
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) return;
+  const promptEvent = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  applyInstallButtonState();
+  try {
+    await promptEvent.prompt();
+    await promptEvent.userChoice;
+  } catch (_) {}
+}
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  applyInstallButtonState();
+});
+
+window.addEventListener('appinstalled', function() {
+  deferredInstallPrompt = null;
+  applyInstallButtonState();
+});
+
+function requestFullscreenOnce() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+
+  // Lock to landscape if possible
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+  }
+}
+
+function loadLevelSvg() {
+  mapImage = null;
+  const lvl = LEVELS[currentLevel];
+  const bgMap = document.getElementById('bg-map');
+  const img = new Image();
+  img.onload = () => {
+    mapImage = img;
+    if (bgMap) {
+      bgMap.style.backgroundImage = 'url(' + CSS.escape(img.src) + ')';
+      bgMap.style.opacity = '0.7';
+    }
+  };
+  img.onerror = () => {
+    if (lvl.svg && !lvl.svg.includes('/')) {
+      img.onerror = null;
+      img.src = 'img/' + lvl.svg;
+    }
+  };
+  img.src = lvl.svg;
+  // Reset zoom when loading a new level
+  viewZoom = 1;
+  viewOffsetX = 0;
+  viewOffsetY = 0;
+}
+
+let levelIntroHideTimer = null;
+function showLevelIntro(levelNum) {
+  const intro = document.getElementById('level-intro');
+  const introTitle = document.getElementById('level-intro-title');
+  if (!intro || !introTitle) return;
+
+  clearTimeout(levelIntroHideTimer);
+  introTitle.textContent = TLevel(levelNum);
+  intro.classList.remove('open');
+  intro.classList.add('show');
+
+  void intro.offsetWidth;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      intro.classList.add('open');
+    });
+  });
+
+  levelIntroHideTimer = setTimeout(() => {
+    intro.classList.remove('show', 'open');
+  }, 3560);
+}
+
+function restartGame(options = {}) {
+  const showIntro = !!options.showIntro;
+  countries = createCountries();
+  transfers = [];
+  impactEffects = [];
+  conquestAnims = [];
+  levelTelemetry = createLevelTelemetry();
+  selectedCountryId = null;
+  gameState = 'playing';
+  aiTimers = {};
+  openingAIAttackDone = {};
+  lastTime = performance.now();
+  levelStartTime = performance.now(); // track level duration
+  pauseStartTime = 0;
+  // Reset pause button icon
+  const pauseBtn = document.getElementById('btn-pause-side');
+  if (pauseBtn) pauseBtn.textContent = '⏸';
+  const pauseOverlay = document.getElementById('pause-overlay');
+  if (pauseOverlay) pauseOverlay.classList.remove('show');
+  // Hide result animation if lingering
+  const resultAnim = document.getElementById('result-anim');
+  if (resultAnim) resultAnim.classList.remove('show');
+  updateLevelTelemetrySnapshot();
+  loadLevelSvg();
+  document.getElementById('end-screen').classList.remove('show');
+  document.getElementById('end-btn-next').style.display = 'none';
+  document.getElementById('level-select').classList.add('hidden');
+  document.title = T('pageTitle') + ' — ' + TLevel(currentLevel);
+  if (showIntro) showLevelIntro(currentLevel);
+  resizeCanvas(); // re-trigger panel positioning
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// LEVEL SELECT SCREEN
+// ============================================================
+function showGameCompletedScreen() {
+  // Unity signals that the child has won the entire game.
+  // Show a victory overlay; Unity will close the WebView automatically after a few seconds.
+  const el = document.getElementById('end-screen');
+  el.classList.add('show');
+  const title = document.getElementById('end-title');
+  if (title) { title.textContent = '🏆 ' + T('winTitle'); title.className = 'win-text'; }
+  const nextBtn = document.getElementById('end-btn-next');
+  if (nextBtn) nextBtn.style.display = 'none';
+  const retryBtn = document.getElementById('end-btn-retry');
+  if (retryBtn) retryBtn.style.display = 'none';
+  const menuBtn = document.getElementById('end-btn-menu');
+  if (menuBtn) menuBtn.style.display = 'none';
+}
+
+function showLevelSelect() {
+  gameState = 'menu';
+  document.getElementById('end-screen').classList.remove('show');
+  document.getElementById('level-select').classList.remove('hidden');
+  const bgMap = document.getElementById('bg-map');
+  if (bgMap) bgMap.style.opacity = '0';
+  // Cacher les panneaux latéraux et overlay pause dans le menu
+  const leftPanel = document.getElementById('left-panel');
+  const rightPanel = document.getElementById('right-panel');
+  const pauseOverlay = document.getElementById('pause-overlay');
+  const resultAnim = document.getElementById('result-anim');
+  if (leftPanel) leftPanel.classList.remove('visible');
+  if (rightPanel) rightPanel.classList.remove('visible');
+  if (pauseOverlay) pauseOverlay.classList.remove('show');
+  if (resultAnim) resultAnim.classList.remove('show');
+  buildLevelGrid();
+}
+
+function buildLevelGrid() {
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  const totalLevels = 20;
+  for (let i = 1; i <= totalLevels; i++) {
+    const card = document.createElement('div');
+    card.className = 'level-card';
+    const isCompleted = completedLevels.includes(i);
+    const isUnlocked = true; // ADMIN: tous les niveaux débloqués
+    const hasData = !!LEVELS[i];
+    const stats = saveData.levelStats[i] || null;
+    const bestGrade = stats && stats.bestGrade ? stats.bestGrade : '';
+
+    const numHtml = '<span class="card-num">' + i + '</span>';
+    const badgeHtml = bestGrade ? '<span class="card-badge" style="color:' + (GRADE_COLORS[bestGrade] || '#fff') + '">' + bestGrade + '</span>' : '';
+
+    if (isCompleted) {
+      card.classList.add('completed');
+      card.innerHTML = numHtml + '<span class="card-check">✔</span>';
+    } else if (isUnlocked && hasData) {
+      card.classList.add('unlocked');
+      card.innerHTML = numHtml + badgeHtml;
+    } else if (!hasData && isUnlocked) {
+      card.classList.add('locked');
+      card.innerHTML = numHtml + '<span class="card-lock">🔒</span>';
+      card.title = T('levelComingSoon');
+    } else {
+      card.classList.add('locked');
+      card.innerHTML = numHtml + '<span class="card-lock">🔒</span>';
+      card.title = T('levelLocked');
+    }
+
+    if (isUnlocked && hasData) {
+      card.addEventListener('click', () => startLevel(i));
+    }
+
+    grid.appendChild(card);
+  }
+}
+
+let playerChosenCountryId = null; // pays auto-sélectionné
+let countryIntroTimer = null;
+let introGlowTimer = 0; // secondes restantes pour le glow d'intro
+
+function autoSelectPlayerCountry(lvl) {
+  const levelData = LEVELS[lvl];
+  if (!levelData || !levelData.countries || !levelData.countries.length) return null;
+  const tiers = CONFIG.tierMultipliers;
+  let best = null;
+  let bestScore = -1;
+  for (const c of levelData.countries) {
+    const score = c.unitsPrecise * (tiers[c.populationTier] || 1.0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best ? best.id : null;
+}
+
+function showCountryIntro(lvl) {
+  const overlay = document.getElementById('country-intro');
+  if (!overlay) { currentLevel = lvl; restartGame({ showIntro: true }); return; }
+  const labelEl = document.getElementById('country-intro-label');
+  const textEl = document.getElementById('country-intro-text');
+  const levelData = LEVELS[lvl];
+  const country = levelData && levelData.countries.find(c => c.id === playerChosenCountryId);
+  const countryName = country ? (TCountry(playerChosenCountryId) || country.name) : '?';
+  const flagEmoji = country ? getFlagEmoji(country.flagCode) : '🏳️';
+  const youAreText = (typeof LANG !== 'undefined' && LANG === 'en') ? 'You are' : 'Vous êtes';
+  if (labelEl) labelEl.textContent = youAreText;
+  if (textEl) textEl.textContent = countryName + ' ' + flagEmoji;
+  overlay.setAttribute('aria-hidden', 'false');
+  overlay.classList.add('show');
+  // Démarrer le jeu en arrière-plan avec effet glow
+  currentLevel = lvl;
+  restartGame({ showIntro: false });
+  introGlowTimer = 7.8; // 2.8s overlay + 5s de mise en valeur après
+  clearTimeout(countryIntroTimer);
+  countryIntroTimer = setTimeout(() => {
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+    showLevelIntro(currentLevel);
+  }, 2800);
+}
+
+function startLevel(lvl) {
+  playerChosenCountryId = autoSelectPlayerCountry(lvl);
+  showCountryIntro(lvl);
+}
+
+function getFlagEmoji(code) {
+  if (!code || code.length < 2) return '🏳️';
+  // Convert 2-letter code to regional indicator emoji
+  const c = code.toUpperCase();
+  return String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+       + String.fromCodePoint(0x1F1E6 + c.charCodeAt(1) - 65);
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function markLevelCompleted(lvl) {
+  if (!completedLevels.includes(lvl)) {
+    completedLevels.push(lvl);
+  }
+  // Always save (stats are updated separately)
+  saveProgress();
+}
+
+function nextLevel() {
+  if (currentLevel < MAX_LEVEL) {
+    startLevel(currentLevel + 1);
+  }
+}
+
+// ============================================================
+// UTILITY
+// ============================================================
+function lerp(a, b, t) { return a + (b - a) * t; }
+function dist(a, b) { return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2); }
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m > 0 ? m + 'min ' + s + 's' : s + 's';
+}
+
+function pointInPolygon(x, y, path) {
+  let inside = false;
+  for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+    const xi = path[i][0], yi = path[i][1];
+    const xj = path[j][0], yj = path[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function getCountryAt(x, y) {
+  for (const c of countries) {
+    if (pointInPolygon(x, y, c.path)) return c;
+  }
+  // Also check the circular dot rendered at the country center
+  for (const c of countries) {
+    const r = getCountryRenderRadius(c);
+    const dx = x - c.center.x;
+    const dy = y - c.center.y;
+    if (dx * dx + dy * dy <= r * r) return c;
+  }
+  return null;
+}
+
+function getCountryById(id) {
+  return countries.find(c => c.id === id);
+}
+
+function getOwnerSurfaceProfile(ownerId, isHighlight) {
+  if (ownerId === 0) {
+    return {
+      overlayAlpha: isHighlight ? 0.58 : 0.44,
+      shimmerAlpha: isHighlight ? 0.14 : 0.1,
+      radialAlpha: isHighlight ? 0.06 : 0.045,
+      borderAlpha: isHighlight ? 0.55 : 0.38,
+      waveAlpha: isHighlight ? 0.7 : 0.5,
+      borderWidth: isHighlight ? 2.3 : 1.7
+    };
+  }
+  if (ownerId < 0) {
+    return {
+      overlayAlpha: isHighlight ? 0.24 : 0.13,
+      shimmerAlpha: isHighlight ? 0.05 : 0.025,
+      radialAlpha: isHighlight ? 0.03 : 0.012,
+      borderAlpha: isHighlight ? 0.28 : 0.16,
+      waveAlpha: isHighlight ? 0.22 : 0.12,
+      borderWidth: isHighlight ? 1.8 : 1.2
+    };
+  }
+  return {
+    overlayAlpha: isHighlight ? 0.49 : 0.33,
+    shimmerAlpha: isHighlight ? 0.11 : 0.075,
+    radialAlpha: isHighlight ? 0.05 : 0.03,
+    borderAlpha: isHighlight ? 0.45 : 0.28,
+    waveAlpha: isHighlight ? 0.5 : 0.34,
+    borderWidth: isHighlight ? 2.05 : 1.45
+  };
+}
+
+function getOwnerColor(ownerId, light = false) {
+  if (ownerId === 0) return light ? COLORS.playerLight : COLORS.player;
+  if (ownerId === 1) return light ? COLORS.aiLight : COLORS.ai;
+  if (ownerId === 2) return light ? COLORS.ai2Light : COLORS.ai2;
+  if (ownerId === 3) return light ? COLORS.ai3Light : COLORS.ai3;
+  if (ownerId === 4) return light ? COLORS.ai4Light : COLORS.ai4;
+  if (ownerId >= 5) {
+    const extras = [
+      [COLORS.ai5, COLORS.ai5Light],
+      [COLORS.ai6, COLORS.ai6Light],
+      [COLORS.ai7, COLORS.ai7Light],
+      [COLORS.ai8, COLORS.ai8Light],
+      [COLORS.ai9, COLORS.ai9Light],
+      [COLORS.ai10, COLORS.ai10Light],
+    ];
+    const p = extras[(ownerId - 5) % extras.length];
+    return light ? p[1] : p[0];
+  }
+  return light ? COLORS.neutralLight : COLORS.neutral;
+}
+
+function getOwnerOverlay(ownerId, isHighlight) {
+  const a = getOwnerSurfaceProfile(ownerId, isHighlight).overlayAlpha;
+  if (ownerId === 0) return `rgba(41, 128, 185, ${a})`;  // Blue
+  if (ownerId === 1) return `rgba(192, 57, 43, ${a})`;   // Red
+  if (ownerId === 2) return `rgba(142, 68, 173, ${a})`;  // Purple
+  if (ownerId === 3) return `rgba(230, 126, 34, ${a})`;  // Orange
+  if (ownerId === 4) return `rgba(39, 174, 96, ${a})`;   // Green
+  if (ownerId >= 5) {
+    const rgbs = ['26,188,156','243,156,18','216,27,96','84,110,122','0,131,143','93,64,55'];
+    return `rgba(${rgbs[(ownerId - 5) % rgbs.length]}, ${a})`;
+  }
+  return `rgba(127, 140, 141, ${isHighlight ? 0.3 : 0.18})`; // Gray neutral
+}
+
+function isPhoneViewport() {
+  return window.matchMedia('(pointer: coarse)').matches
+    && Math.min(window.innerWidth, window.innerHeight) <= 500;
+}
+
+function getCountryRenderRadius(country) {
+  const baseRadius = country.dotSize || 26;
+  const boosted = Math.round(baseRadius * 1.15);
+  return isPhoneViewport() ? Math.round(boosted * 1.12) : boosted;
+}
+
+// ============================================================
+// INPUT HANDLING
+// ============================================================
+function canvasCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const rawX = (clientX - rect.left) * (LOGICAL_CANVAS_WIDTH / rect.width);
+  const rawY = (clientY - rect.top) * (LOGICAL_CANVAS_HEIGHT / rect.height);
+  // Account for zoom: convert screen coords to world coords
+  return {
+    x: rawX / viewZoom + viewOffsetX,
+    y: rawY / viewZoom + viewOffsetY
+  };
+}
+
+function handleClick(e) {
+  if (gameState !== 'playing') return;
+  const { x, y } = canvasCoords(e.clientX, e.clientY);
+  processClick(x, y);
+}
+
+function processClick(x, y) {
+  const clicked = getCountryAt(x, y);
+
+  if (!selectedCountryId) {
+    // Select source
+    if (clicked && clicked.ownerId === 0 && Math.floor(clicked.unitsPrecise) > CONFIG.minGarrison) {
+      selectedCountryId = clicked.id;
+    }
+  } else {
+    // Vérifie que le pays sélectionné appartient toujours au joueur
+    const selectedCountry = getCountryById(selectedCountryId);
+    if (!selectedCountry || selectedCountry.ownerId !== 0) {
+      selectedCountryId = null;
+      return;
+    }
+    // Send troops or deselect
+    if (clicked && clicked.id !== selectedCountryId) {
+      sendTroops(selectedCountryId, clicked.id);
+    }
+    selectedCountryId = null;
+  }
+}
+
+function handleMouseMove(e) {
+  const { x, y } = canvasCoords(e.clientX, e.clientY);
+  mousePos.x = x;
+  mousePos.y = y;
+  hoverCountryId = getCountryAt(x, y)?.id || null;
+}
+
+function handleKeyDown(e) {
+  if (e.key === 'Escape') {
+    selectedCountryId = null;
+  }
+  // Reset zoom with R key
+  if (e.key === 'r' || e.key === 'R') {
+    viewZoom = 1;
+    viewOffsetX = 0;
+    viewOffsetY = 0;
+  }
+}
+
+function handleWheel(e) {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const screenX = (e.clientX - rect.left) * (LOGICAL_CANVAS_WIDTH / rect.width);
+  const screenY = (e.clientY - rect.top) * (LOGICAL_CANVAS_HEIGHT / rect.height);
+  // World coords under cursor before zoom
+  const worldX = screenX / viewZoom + viewOffsetX;
+  const worldY = screenY / viewZoom + viewOffsetY;
+
+  const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
+  viewZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom * zoomFactor));
+
+  // Adjust offset so world point stays under cursor
+  viewOffsetX = worldX - screenX / viewZoom;
+  viewOffsetY = worldY - screenY / viewZoom;
+  clampView();
+}
+
+// ── Touch handling (tap + swipe + pinch-to-zoom) ──
+let touchStartPos = null;
+let touchMoved = false;
+let swipeSourceCountry = null; // country under finger at touch start
+
+function getTouchDistance(t1, t2) {
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getTouchMidpoint(t1, t2) {
+  return {
+    cx: (t1.clientX + t2.clientX) / 2,
+    cy: (t1.clientY + t2.clientY) / 2
+  };
+}
+
+function clampView() {
+  // Clamp zoom
+  viewZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom));
+  // Clamp offset so we don't pan outside the map
+  if (viewZoom <= 1) {
+    viewOffsetX = 0;
+    viewOffsetY = 0;
+  } else {
+    const maxOX = LOGICAL_CANVAS_WIDTH - LOGICAL_CANVAS_WIDTH / viewZoom;
+    const maxOY = LOGICAL_CANVAS_HEIGHT - LOGICAL_CANVAS_HEIGHT / viewZoom;
+    viewOffsetX = Math.max(0, Math.min(maxOX, viewOffsetX));
+    viewOffsetY = Math.max(0, Math.min(maxOY, viewOffsetY));
+  }
+}
+
+function handleTouchStart(e) {
+  e.preventDefault();
+
+  // ── Pinch start (2 fingers) ──
+  if (e.touches.length === 2) {
+    isPinching = true;
+    swipeSourceCountry = null;
+    selectedCountryId = null;
+    touchStartPos = null;
+    pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+    pinchStartZoom = viewZoom;
+    const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+    const rect = canvas.getBoundingClientRect();
+    pinchMidX = (mid.cx - rect.left) * (LOGICAL_CANVAS_WIDTH / rect.width);
+    pinchMidY = (mid.cy - rect.top) * (LOGICAL_CANVAS_HEIGHT / rect.height);
+    return;
+  }
+
+  if (e.touches.length !== 1) return;
+  if (isPinching) return;
+  const touch = e.touches[0];
+  const { x, y } = canvasCoords(touch.clientX, touch.clientY);
+  touchStartPos = { x, y, cx: touch.clientX, cy: touch.clientY };
+  touchMoved = false;
+
+  // Detect source country for potential swipe attack
+  const startCountry = getCountryAt(x, y);
+  if (startCountry && startCountry.ownerId === 0 && Math.floor(startCountry.unitsPrecise) > CONFIG.minGarrison) {
+    swipeSourceCountry = startCountry;
+    // Auto-select for visual feedback (ghost line)
+    selectedCountryId = startCountry.id;
+  } else {
+    swipeSourceCountry = null;
+  }
+
+  // Update hover/ghost line position
+  mousePos.x = x;
+  mousePos.y = y;
+  hoverCountryId = getCountryAt(x, y)?.id || null;
+}
+
+function handleTouchMove(e) {
+  e.preventDefault();
+
+  // ── Pinch move (2 fingers) ──
+  if (e.touches.length === 2 && isPinching) {
+    const newDist = getTouchDistance(e.touches[0], e.touches[1]);
+    const scale = newDist / pinchStartDist;
+    const oldZoom = viewZoom;
+    viewZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchStartZoom * scale));
+
+    // Zoom toward the midpoint of the pinch
+    const worldMidX = pinchMidX / oldZoom + viewOffsetX;
+    const worldMidY = pinchMidY / oldZoom + viewOffsetY;
+    viewOffsetX = worldMidX - pinchMidX / viewZoom;
+    viewOffsetY = worldMidY - pinchMidY / viewZoom;
+    clampView();
+
+    // Update pinch midpoint for smooth panning during pinch
+    const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+    const rect = canvas.getBoundingClientRect();
+    pinchMidX = (mid.cx - rect.left) * (LOGICAL_CANVAS_WIDTH / rect.width);
+    pinchMidY = (mid.cy - rect.top) * (LOGICAL_CANVAS_HEIGHT / rect.height);
+    return;
+  }
+
+  if (e.touches.length !== 1) return;
+  if (isPinching) return;
+
+  const touch = e.touches[0];
+  const { x, y } = canvasCoords(touch.clientX, touch.clientY);
+
+  // If zoomed in, allow single-finger pan
+  if (viewZoom > 1.05 && touchStartPos && !swipeSourceCountry) {
+    const rect = canvas.getBoundingClientRect();
+    const dx = (touch.clientX - touchStartPos.cx) * (LOGICAL_CANVAS_WIDTH / rect.width) / viewZoom;
+    const dy = (touch.clientY - touchStartPos.cy) * (LOGICAL_CANVAS_HEIGHT / rect.height) / viewZoom;
+    viewOffsetX -= dx;
+    viewOffsetY -= dy;
+    clampView();
+    touchStartPos.cx = touch.clientX;
+    touchStartPos.cy = touch.clientY;
+    touchMoved = true;
+    return;
+  }
+
+  // Check if finger moved significantly (> 10px on screen)
+  if (touchStartPos) {
+    const dx = touch.clientX - touchStartPos.cx;
+    const dy = touch.clientY - touchStartPos.cy;
+    if (Math.sqrt(dx * dx + dy * dy) > 10) touchMoved = true;
+  }
+  mousePos.x = x;
+  mousePos.y = y;
+  hoverCountryId = getCountryAt(x, y)?.id || null;
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+
+  // If all fingers lifted after pinch, reset pinch state
+  if (isPinching) {
+    if (e.touches.length === 0) {
+      isPinching = false;
+    }
+    return;
+  }
+
+  if (!touchStartPos) return;
+
+  // Update mousePos to the exact position where the finger was lifted
+  const changedTouch = e.changedTouches && e.changedTouches[0];
+  if (changedTouch) {
+    const finalPos = canvasCoords(changedTouch.clientX, changedTouch.clientY);
+    mousePos.x = finalPos.x;
+    mousePos.y = finalPos.y;
+  }
+
+  if (gameState === 'playing') {
+    if (touchMoved && swipeSourceCountry) {
+      // Vérifie que le pays appartient toujours au joueur
+      const currentSwipeCountry = getCountryById(swipeSourceCountry.id);
+      if (!currentSwipeCountry || currentSwipeCountry.ownerId !== 0) {
+        selectedCountryId = null;
+      } else {
+        // ── SWIPE: drag from source → release on target ──
+        const target = getCountryAt(mousePos.x, mousePos.y);
+        if (target && target.id !== swipeSourceCountry.id) {
+          sendTroops(swipeSourceCountry.id, target.id);
+        }
+        selectedCountryId = null;
+      }
+    } else if (!touchMoved) {
+      // ── TAP: classic two-tap flow ──
+      processClick(mousePos.x, mousePos.y);
+    }
+  }
+
+  touchStartPos = null;
+  touchMoved = false;
+  swipeSourceCountry = null;
+}
+
+function handleTouchCancel(e) {
+  e.preventDefault();
+  isPinching = false;
+  touchStartPos = null;
+  touchMoved = false;
+  swipeSourceCountry = null;
+  hoverCountryId = null;
+  selectedCountryId = null;
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+function sendTroops(fromId, toId) {
+  const source = getCountryById(fromId);
+  const target = getCountryById(toId);
+  if (!source || !target) return;
+
+  const send = Math.max(0, Math.floor(source.unitsPrecise) - CONFIG.minGarrison);
+  if (send <= 0) return;
+
+  source.unitsPrecise -= send;
+  const d = dist(source.center, target.center);
+  const baseTravelTime = d / getLevelTravelSpeed();
+  const particleCount = clamp(Math.floor(send / CONFIG.particleK), CONFIG.minParticles, CONFIG.maxParticles);
+  const attackId = registerAttackWave(source, target);
+  levelTelemetry.attacks[attackId].remainingParticles = particleCount;
+
+  // Each particle carries a share of units and departs with a stagger delay
+  const unitsPerParticle = send / particleCount;
+  // Formation based on troop count sent
+  const formationRows = send > 20 ? 4 : send > 15 ? 3 : send > 10 ? 2 : 1;
+  const cols = formationRows > 1 ? Math.ceil(particleCount / formationRows) : 1;
+  // Fixed time gap between rows so lines stay visually separated
+  const rowGap = 0.22; // seconds between each row
+  const colSpacing = 16;
+
+  for (let i = 0; i < particleCount; i++) {
+    let row, col;
+    if (formationRows === 1) {
+      // File indienne: each troop in sequence
+      row = i;
+      col = 0;
+    } else {
+      row = i % formationRows;
+      col = Math.floor(i / formationRows);
+    }
+    const departDelay = row * rowGap;
+    const colOffset = (col - (cols - 1) / 2) * colSpacing;
+    transfers.push({
+      fromId, toId,
+      ownerId: source.ownerId,
+      attackId,
+      flagCode: source.flagCode,
+      units: unitsPerParticle,
+      travelTime: baseTravelTime,
+      departDelay,
+      elapsed: 0,
+      from: { ...source.center },
+      to: { ...target.center },
+      offset: colOffset,
+      arrived: false
+    });
+  }
+}
+
+function updateSpawn(dt) {
+  for (const c of countries) {
+    // Neutrals spawn at half rate
+    const mult = CONFIG.tierMultipliers[c.populationTier] || 1.0;
+    const neutralFactor = c.ownerId < 0 ? 0.5 : 1.0;
+    c.unitsPrecise += CONFIG.baseRate * mult * neutralFactor * dt;
+  }
+}
+
+function updateTransfers(dt) {
+  for (let i = transfers.length - 1; i >= 0; i--) {
+    const tr = transfers[i];
+    tr.elapsed += dt;
+    const flyTime = tr.elapsed - tr.departDelay;
+    if (flyTime >= tr.travelTime && !tr.arrived) {
+      tr.arrived = true;
+      // Resolve this single particle's units
+      const target = getCountryById(tr.toId);
+      if (target) {
+        if (target.ownerId === tr.ownerId) {
+          target.unitsPrecise += tr.units;
+        } else {
+          playCandyBlop();
+          target.unitsPrecise -= tr.units;
+          // Trigger impact effects on the target node
+          triggerImpact(target, tr);
+          if (target.unitsPrecise < 0) {
+            target.ownerId = tr.ownerId;
+            target.unitsPrecise = Math.abs(target.unitsPrecise);
+            const attack = levelTelemetry.attacks[tr.attackId];
+            if (attack && !attack.conquestCounted) {
+              attack.conquered = true;
+              attack.conquestCounted = true;
+              addCount(levelTelemetry.conquestsByOwner, tr.ownerId);
+            }
+            triggerConquestAnim(target, tr.ownerId);
+          }
+        }
+      }
+
+      const attack = levelTelemetry.attacks[tr.attackId];
+      if (attack) {
+        attack.remainingParticles--;
+        if (attack.remainingParticles <= 0) {
+          finalizeAttackWave(tr.attackId, getCountryById(tr.toId));
+        }
+      }
+    }
+    // Remove particle after it has arrived
+    if (tr.arrived) {
+      transfers.splice(i, 1);
+    }
+  }
+}
+
+// ============================================================
+// MID-AIR TRANSFER COMBAT
+// ============================================================
+const TRANSFER_COLLISION_RADIUS = 14; // distance in logical px for two particles to collide
+
+function getTransferPosition(tr) {
+  const flyTime = tr.elapsed - tr.departDelay;
+  if (flyTime < 0) return null; // not yet departed
+  const progress = clamp(flyTime / tr.travelTime, 0, 1);
+  const dx = tr.to.x - tr.from.x;
+  const dy = tr.to.y - tr.from.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const px = -dy / len;
+  const py = dx / len;
+  return {
+    x: lerp(tr.from.x, tr.to.x, progress) + px * tr.offset,
+    y: lerp(tr.from.y, tr.to.y, progress) + py * tr.offset
+  };
+}
+
+function updateTransferCombat() {
+  // Build list of active (in-flight, not arrived) transfers
+  const active = [];
+  for (let i = 0; i < transfers.length; i++) {
+    const tr = transfers[i];
+    if (tr.arrived) continue;
+    const pos = getTransferPosition(tr);
+    if (!pos) continue;
+    active.push({ idx: i, tr, x: pos.x, y: pos.y });
+  }
+
+  // Check all pairs for collisions between different owners
+  const toRemove = new Set();
+  for (let a = 0; a < active.length; a++) {
+    if (toRemove.has(active[a].idx)) continue;
+    for (let b = a + 1; b < active.length; b++) {
+      if (toRemove.has(active[b].idx)) continue;
+      const pa = active[a];
+      const pb = active[b];
+      // Skip same owner
+      if (pa.tr.ownerId === pb.tr.ownerId) continue;
+      // Distance check
+      const dx = pa.x - pb.x;
+      const dy = pa.y - pb.y;
+      if (dx * dx + dy * dy > TRANSFER_COLLISION_RADIUS * TRANSFER_COLLISION_RADIUS) continue;
+
+      // Combat! Both lose units proportionally
+      const midX = (pa.x + pb.x) / 2;
+      const midY = (pa.y + pb.y) / 2;
+      const aUnits = pa.tr.units;
+      const bUnits = pb.tr.units;
+
+      if (aUnits > bUnits) {
+        // A survives with remainder
+        pa.tr.units = aUnits - bUnits;
+        pb.tr.arrived = true;
+        toRemove.add(pb.idx);
+        triggerMidAirClash(midX, midY, pa.tr.ownerId, pb.tr.ownerId);
+      } else if (bUnits > aUnits) {
+        // B survives with remainder
+        pb.tr.units = bUnits - aUnits;
+        pa.tr.arrived = true;
+        toRemove.add(pa.idx);
+        triggerMidAirClash(midX, midY, pa.tr.ownerId, pb.tr.ownerId);
+        break; // pa is gone, move to next a
+      } else {
+        // Both destroyed
+        pa.tr.arrived = true;
+        pb.tr.arrived = true;
+        toRemove.add(pa.idx);
+        toRemove.add(pb.idx);
+        triggerMidAirClash(midX, midY, pa.tr.ownerId, pb.tr.ownerId);
+        break; // pa is gone
+      }
+    }
+  }
+
+  // Clean up destroyed transfers (iterate in reverse to preserve indices)
+  const removeList = [...toRemove].sort((a, b) => b - a);
+  for (const idx of removeList) {
+    const tr = transfers[idx];
+    tr.arrived = true;
+    // Decrement remaining particles for attack tracking
+    const attack = levelTelemetry.attacks[tr.attackId];
+    if (attack) {
+      attack.remainingParticles--;
+      if (attack.remainingParticles <= 0) {
+        finalizeAttackWave(tr.attackId, getCountryById(tr.toId));
+      }
+    }
+    transfers.splice(idx, 1);
+  }
+}
+
+function triggerMidAirClash(x, y, ownerA, ownerB) {
+  playCandyBlop();
+  // Sparks in both owners' colors
+  const colors = [getOwnerColor(ownerA), getOwnerColor(ownerB)];
+  const sparkCount = 6;
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 30 + Math.random() * 60;
+    const life = 0.2 + Math.random() * 0.2;
+    impactEffects.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life, maxLife: life,
+      size: 1.5 + Math.random() * 2.5,
+      color: colors[i % 2]
+    });
+  }
+  // Small central flash
+  impactEffects.push({
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.15, maxLife: 0.15,
+    size: 12,
+    isFlash: true,
+    color: '#ffffff'
+  });
+}
+
+// ============================================================
+// IMPACT EFFECTS
+// ============================================================
+function triggerImpact(target, tr) {
+  // --- Shake the node ---
+  const dx = tr.to.x - tr.from.x;
+  const dy = tr.to.y - tr.from.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  // Shake away from attacker direction
+  const shakeStrength = 6;
+  target.shakeX = (dx / len) * shakeStrength;
+  target.shakeY = (dy / len) * shakeStrength;
+  target.shakeTime = 0.3; // seconds
+
+  // --- Spawn clash sparks ---
+  const sparkCount = 5 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 40 + Math.random() * 80;
+    impactEffects.push({
+      x: target.center.x,
+      y: target.center.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.3 + Math.random() * 0.25,
+      maxLife: 0.3 + Math.random() * 0.25,
+      size: 2 + Math.random() * 3,
+      color: getOwnerColor(tr.ownerId)
+    });
+  }
+  // Add a central flash
+  impactEffects.push({
+    x: target.center.x,
+    y: target.center.y,
+    vx: 0, vy: 0,
+    life: 0.2,
+    maxLife: 0.2,
+    size: 18,
+    isFlash: true,
+    color: '#ffffff'
+  });
+}
+
+// ============================================================
+// CONQUEST ANIMATION
+// ============================================================
+function triggerConquestAnim(country, ownerId) {
+  const color = getOwnerColor(ownerId);
+  const cx = country.center.x;
+  const cy = country.center.y;
+  const radius = getCountryRenderRadius(country);
+
+  // Expanding ring wave
+  conquestAnims.push({
+    type: 'ring',
+    x: cx, y: cy,
+    color: color,
+    maxRadius: radius * 4,
+    elapsed: 0,
+    duration: 0.6
+  });
+
+  // Second, slower ring
+  conquestAnims.push({
+    type: 'ring',
+    x: cx, y: cy,
+    color: color,
+    maxRadius: radius * 5.5,
+    elapsed: -0.1, // slight delay
+    duration: 0.7
+  });
+
+  // Burst particles outward in the owner's color
+  const burstCount = 12 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < burstCount; i++) {
+    const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.3;
+    const speed = 80 + Math.random() * 100;
+    conquestAnims.push({
+      type: 'spark',
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color: color,
+      size: 3 + Math.random() * 3,
+      elapsed: 0,
+      duration: 0.5 + Math.random() * 0.3
+    });
+  }
+
+  // Central color flash
+  conquestAnims.push({
+    type: 'flash',
+    x: cx, y: cy,
+    color: color,
+    maxRadius: radius * 2,
+    elapsed: 0,
+    duration: 0.35
+  });
+}
+
+function updateConquestAnims(dt) {
+  for (let i = conquestAnims.length - 1; i >= 0; i--) {
+    const a = conquestAnims[i];
+    a.elapsed += dt;
+    if (a.type === 'spark') {
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      a.vx *= 0.94;
+      a.vy *= 0.94;
+    }
+    if (a.elapsed >= a.duration) {
+      conquestAnims.splice(i, 1);
+    }
+  }
+}
+
+function drawConquestAnims() {
+  for (const a of conquestAnims) {
+    if (a.elapsed < 0) continue; // delayed
+    const t = clamp(a.elapsed / a.duration, 0, 1);
+    ctx.save();
+
+    if (a.type === 'ring') {
+      const r = a.maxRadius * easeOutCubic(t);
+      const alpha = 1 - t;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = a.color;
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.lineWidth = 3 * (1 - t) + 1;
+      ctx.stroke();
+    } else if (a.type === 'flash') {
+      const r = a.maxRadius * easeOutCubic(t);
+      const alpha = (1 - t) * 0.5;
+      const grad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, r);
+      grad.addColorStop(0, a.color);
+      grad.addColorStop(1, a.color + '00');
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (a.type === 'spark') {
+      const alpha = 1 - t;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = a.color;
+      ctx.shadowColor = a.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, a.size * (1 - t * 0.5), 0, Math.PI * 2);
+      ctx.fill();
+      // White core
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, a.size * (1 - t * 0.5) * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function updateImpactEffects(dt) {
+  // Update node shakes
+  for (const c of countries) {
+    if (c.shakeTime && c.shakeTime > 0) {
+      c.shakeTime -= dt;
+      if (c.shakeTime <= 0) {
+        c.shakeTime = 0;
+        c.shakeX = 0;
+        c.shakeY = 0;
+      }
+    }
+  }
+  // Update spark particles
+  for (let i = impactEffects.length - 1; i >= 0; i--) {
+    const p = impactEffects[i];
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.92; // friction
+    p.vy *= 0.92;
+    if (p.life <= 0) {
+      impactEffects.splice(i, 1);
+    }
+  }
+}
+
+function checkWinLose() {
+  if (gameState !== 'playing') return;
+  const playerCountries = countries.filter(c => c.ownerId === 0);
+  const allOwned = countries.every(c => c.ownerId === 0);
+
+  if (allOwned) {
+    gameState = 'won';
+    showResultAnimation(true);
+  } else if (playerCountries.length === 0 && transfers.every(t => t.ownerId !== 0)) {
+    gameState = 'lost';
+    showResultAnimation(false);
+  }
+}
+
+// Victory / Defeat animation before end screen
+function showResultAnimation(won) {
+  const overlay = document.getElementById('result-anim');
+  const bg = document.getElementById('result-anim-bg');
+  const textEl = document.getElementById('result-anim-text');
+  const subEl = document.getElementById('result-anim-sub');
+  const confettiContainer = document.getElementById('confetti-container');
+  if (!overlay) { showEndScreen(won); return; }
+
+  // Set content
+  if (won) {
+    textEl.textContent = '🏆 VICTOIRE !';
+    textEl.style.color = '#f1c40f';
+    subEl.textContent = 'Tu as conquis tous les pays !';
+    bg.style.background = 'radial-gradient(circle at center, rgba(241,196,15,0.25) 0%, rgba(46,204,113,0.18) 40%, rgba(0,0,0,0.72) 100%)';
+    // Spawn confetti
+    confettiContainer.innerHTML = '';
+    const colors = ['#f1c40f','#2ecc71','#3498db','#e74c3c','#9b59b6','#e67e22','#1abc9c','#ecf0f1'];
+    for (let i = 0; i < 70; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = (Math.random() * 100) + '%';
+      piece.style.top = (-Math.random() * 20 - 5) + '%';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.width = (6 + Math.random() * 10) + 'px';
+      piece.style.height = (6 + Math.random() * 10) + 'px';
+      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      const duration = 1.8 + Math.random() * 1.8;
+      const delay = Math.random() * 0.8;
+      piece.style.animationDuration = duration + 's';
+      piece.style.animationDelay = delay + 's';
+      confettiContainer.appendChild(piece);
+    }
+  } else {
+    textEl.textContent = '💀 DÉFAITE';
+    textEl.style.color = '#e74c3c';
+    subEl.textContent = 'Tous tes territoires ont été perdus.';
+    bg.style.background = 'radial-gradient(circle at center, rgba(231,76,60,0.35) 0%, rgba(0,0,0,0.85) 100%)';
+    confettiContainer.innerHTML = '';
+  }
+
+  overlay.classList.add('show');
+
+  // Duration: victory = 3.2s, defeat = 1.8s
+  const duration = won ? 3200 : 1800;
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    confettiContainer.innerHTML = '';
+    showEndScreen(won);
+  }, duration);
+}
+
+function showEndScreen(won) {
+  const el = document.getElementById('end-screen');
+  const title = document.getElementById('end-title');
+  const btn = document.getElementById('end-btn-retry');
+  el.classList.add('show');
+  const nextBtn = document.getElementById('end-btn-next');
+  const duration = (performance.now() - levelStartTime) / 1000; // seconds
+  const durationRounded = Math.round(duration * 10) / 10;
+  const grade = won ? calculateGrade(currentLevel, duration) : null;
+  const currentRunStats = buildEndScreenStats();
+
+  // Grade display elements
+  const gradeDisplay = document.getElementById('grade-display');
+  const gradeLetter = document.getElementById('grade-letter');
+  const gradeLabel = document.getElementById('grade-label');
+  gradeDisplay.style.display = 'none';
+
+  saveLevelRunHistory(currentLevel, {
+    recordedAt: new Date().toISOString(),
+    won,
+    duration: durationRounded,
+    grade,
+    stats: currentRunStats
+  });
+
+  if (won) {
+    markLevelCompleted(currentLevel);
+    recordLevelWin(currentLevel, duration);
+    const bestTime = saveData.levelStats[currentLevel]?.bestTime;
+    const timeStr = formatTime(duration);
+    title.textContent = T('winTitle');
+    title.className = 'win-text';
+    btn.textContent = T('btnReplay');
+
+    // ── Grade display ──
+    gradeDisplay.style.display = 'block';
+    gradeLetter.textContent = grade;
+    gradeLetter.className = 'grade-letter grade-' + grade;
+    gradeLabel.textContent = T('gradeLabel');
+
+    // Show time info
+    let timeEl = document.getElementById('end-time-info');
+    if (!timeEl) {
+      timeEl = document.createElement('div');
+      timeEl.id = 'end-time-info';
+      timeEl.style.cssText = 'color:#ecf0f1;font-size:16px;margin-top:-8px;';
+      el.insertBefore(timeEl, btn.parentElement);
+    }
+    const timeInfoStr = T('timeInfo', { time: timeStr });
+    const bestStr = bestTime && bestTime < 99999 && bestTime < duration ? ' &nbsp;·&nbsp; ' + T('timeBest', { time: formatTime(bestTime) }) : ' ' + T('timeNewRecord');
+    timeEl.innerHTML = timeInfoStr + bestStr;
+    timeEl.style.display = 'block';
+
+    // Show "next level" button — disabled until Wytopia responds (or 5s fallback)
+    const completedLvl = currentLevel;
+    if (completedLvl < MAX_LEVEL) {
+      nextBtn.style.display = 'inline-block';
+      nextBtn.disabled = true;
+      nextBtn.textContent = T('btnNextLevel', { n: completedLvl + 1 });
+      if (wytopia) {
+        wytopia.levelComplete(completedLvl, { grade: grade, duration: durationRounded })
+          .then(function(response) {
+            var nextLvl = (response.level >= 1 && response.level <= MAX_LEVEL && LEVELS[response.level])
+              ? response.level : completedLvl + 1;
+            nextBtn.disabled = false;
+            nextBtn.textContent = T('btnNextLevel', { n: nextLvl });
+            nextBtn.onclick = function() { startLevel(nextLvl); };
+          });
+      } else {
+        // Standalone mode — enable immediately
+        nextBtn.disabled = false;
+        nextBtn.onclick = function() { startLevel(completedLvl + 1); };
+      }
+    } else {
+      nextBtn.style.display = 'none';
+    }
+  } else {
+    recordLevelLoss(currentLevel);
+    title.textContent = T('loseTitle');
+    title.className = 'lose-text';
+    btn.textContent = T('btnRetryLoss');
+    nextBtn.style.display = 'none';
+    // Hide time info on loss
+    const timeEl = document.getElementById('end-time-info');
+    if (timeEl) timeEl.style.display = 'none';
+  }
+
+  // Add menu button on end screen
+  let menuBtn = document.getElementById('end-btn-menu');
+  if (!menuBtn) {
+    menuBtn = document.createElement('button');
+    menuBtn.id = 'end-btn-menu';
+    menuBtn.className = 'btn btn-quit';
+    menuBtn.textContent = T('btnMenu');
+    menuBtn.onclick = showLevelSelect;
+    btn.parentElement.appendChild(menuBtn);
+  }
+}
+
+// ============================================================
+// AI
+// ============================================================
+function updateAI(dt) {
+  if (gameState !== 'playing') return;
+
+  // Collect all distinct AI owner IDs present on the map
+  const aiIds = [...new Set(countries.filter(c => c.ownerId >= 1).map(c => c.ownerId))];
+  if (aiIds.length === 0) return;
+
+  for (const aiId of aiIds) {
+    // Per-AI timer
+    if (aiTimers[aiId] === undefined) aiTimers[aiId] = 0;
+    aiTimers[aiId] -= dt;
+    if (aiTimers[aiId] > 0) continue;
+
+    const levelAI = getLevelAI(aiId);
+    aiTimers[aiId] = levelAI.thinkInterval;
+
+    const aiCountries = countries.filter(c => c.ownerId === aiId);
+    const hasOtherAITarget = countries.some(c => c.ownerId >= 1 && c.ownerId !== aiId);
+    const hasNonPlayerTarget = countries.some(c => c.ownerId !== aiId && c.ownerId !== 0);
+
+    for (const src of aiCountries) {
+      if (Math.floor(src.unitsPrecise) < levelAI.minUnitsToAttack) continue;
+
+      // Per-country opening rule: each country's first attack must not target the player
+      const forceOpeningAIAttack = !openingAIAttackDone[src.id];
+
+      // Score all possible targets
+      let bestTarget = null;
+      let bestScore = -Infinity;
+
+      for (const tgt of countries) {
+        if (tgt.id === src.id) continue;
+        if (tgt.ownerId === aiId) continue; // Don't attack own countries
+        if (forceOpeningAIAttack && hasOtherAITarget && tgt.ownerId < 1) continue;
+        if (forceOpeningAIAttack && !hasOtherAITarget && hasNonPlayerTarget && tgt.ownerId === 0) continue;
+
+        let score = 0;
+        const tgtUnits = Math.floor(tgt.unitsPrecise);
+        const srcUnits = Math.floor(src.unitsPrecise);
+
+        // Prefer weaker targets
+        score += (srcUnits - tgtUnits) * 2;
+
+        // Focus player (réduit pour que l'IA préfère s'attaquer entre elle)
+        if (!forceOpeningAIAttack && tgt.ownerId === 0) {
+          score += levelAI.focusPlayerWeight * 15;
+        }
+
+        // Bonus pour attaquer une autre IA (encourage les guerres entre IA)
+        if (!forceOpeningAIAttack && tgt.ownerId >= 1) {
+          score += 18;
+        }
+
+        // Prefer closer targets
+        const d = dist(src.center, tgt.center);
+        score -= d * 0.05;
+
+        // Prefer neutrals if they're weak (easy pick)
+        if (tgt.ownerId === -1 && tgtUnits < srcUnits * 0.6) {
+          score += 20;
+        }
+
+        // Opening rule: the first move of this country should target another AI when possible.
+        if (forceOpeningAIAttack && tgt.ownerId >= 1) {
+          score += 40;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestTarget = tgt;
+        }
+      }
+
+      if (bestTarget && (bestScore > 0 || forceOpeningAIAttack)) {
+        sendTroopsAI(src.id, bestTarget.id, aiId);
+
+        if (forceOpeningAIAttack) {
+          openingAIAttackDone[src.id] = true; // per-country tracking
+        }
+      }
+    }
+  }
+}
+
+function sendTroopsAI(fromId, toId, aiOwnerId) {
+  const source = getCountryById(fromId);
+  const target = getCountryById(toId);
+  if (!source || !target) return;
+
+  const send = Math.max(0, Math.floor(source.unitsPrecise) - CONFIG.minGarrison);
+  if (send <= 0) return;
+
+  source.unitsPrecise -= send;
+  const d = dist(source.center, target.center);
+  const baseTravelTime = d / getLevelTravelSpeed();
+  const particleCount = clamp(Math.floor(send / CONFIG.particleK), CONFIG.minParticles, CONFIG.maxParticles);
+  const attackId = registerAttackWave(source, target);
+  levelTelemetry.attacks[attackId].remainingParticles = particleCount;
+  const unitsPerParticle = send / particleCount;
+  const formationRows = send > 20 ? 4 : send > 15 ? 3 : send > 10 ? 2 : 1;
+  const cols = formationRows > 1 ? Math.ceil(particleCount / formationRows) : 1;
+  const rowGap = 0.22;
+  const colSpacing = 16;
+
+  for (let i = 0; i < particleCount; i++) {
+    let row, col;
+    if (formationRows === 1) {
+      row = i;
+      col = 0;
+    } else {
+      row = i % formationRows;
+      col = Math.floor(i / formationRows);
+    }
+    const departDelay = row * rowGap;
+    const colOffset = (col - (cols - 1) / 2) * colSpacing;
+    transfers.push({
+      fromId, toId,
+      ownerId: aiOwnerId,
+      attackId,
+      flagCode: source.flagCode,
+      units: unitsPerParticle,
+      travelTime: baseTravelTime,
+      departDelay,
+      elapsed: 0,
+      from: { ...source.center },
+      to: { ...target.center },
+      offset: colOffset,
+      arrived: false
+    });
+  }
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function drawPath(path) {
+  ctx.beginPath();
+  ctx.moveTo(path[0][0], path[0][1]);
+  for (let i = 1; i < path.length; i++) {
+    ctx.lineTo(path[i][0], path[i][1]);
+  }
+  ctx.closePath();
+}
+
+function drawCountryShimmerOverlay(country, nowMs, isActive) {
+  const profile = getOwnerSurfaceProfile(country.ownerId, isActive);
+  const shimmerSpeed = 0.00022;
+  const shimmerPhase = (nowMs * shimmerSpeed + country.center.x * 0.0017 + country.center.y * 0.0011) % 1;
+  const bandCenter = -LOGICAL_CANVAS_WIDTH * 0.35 + shimmerPhase * LOGICAL_CANVAS_WIDTH * 1.9;
+  const gradient = ctx.createLinearGradient(
+    bandCenter - 140,
+    0,
+    bandCenter + 140,
+    LOGICAL_CANVAS_HEIGHT
+  );
+  const alphaBoost = profile.shimmerAlpha;
+
+  gradient.addColorStop(0, 'rgba(255,255,255,0)');
+  gradient.addColorStop(0.35, 'rgba(255,255,255,0.015)');
+  gradient.addColorStop(0.5, 'rgba(255,255,255,' + alphaBoost.toFixed(3) + ')');
+  gradient.addColorStop(0.65, 'rgba(255,255,255,0.02)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, LOGICAL_CANVAS_WIDTH, LOGICAL_CANVAS_HEIGHT);
+
+  const pulse = 0.5 + 0.5 * Math.sin(nowMs * 0.0016 + country.center.x * 0.02);
+  const radial = ctx.createRadialGradient(
+    country.center.x - 8,
+    country.center.y - 10,
+    0,
+    country.center.x,
+    country.center.y,
+    Math.max(getCountryRenderRadius(country), 32) * 3.4
+  );
+  radial.addColorStop(0, 'rgba(255,255,255,' + (profile.radialAlpha + pulse * profile.radialAlpha * 0.45).toFixed(3) + ')');
+  radial.addColorStop(0.45, 'rgba(255,255,255,0.018)');
+  radial.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = radial;
+  ctx.fillRect(0, 0, LOGICAL_CANVAS_WIDTH, LOGICAL_CANVAS_HEIGHT);
+}
+
+function drawCountryBorderWave(country, nowMs, isActive) {
+  const profile = getOwnerSurfaceProfile(country.ownerId, isActive);
+  const borderColor = getOwnerColor(country.ownerId, true);
+  const waveCenter = ((nowMs * 0.18 + country.center.x * 0.7 + country.center.y * 0.45) % (LOGICAL_CANVAS_WIDTH * 1.8)) - LOGICAL_CANVAS_WIDTH * 0.4;
+  const waveGradient = ctx.createLinearGradient(
+    waveCenter - 130,
+    0,
+    waveCenter + 130,
+    LOGICAL_CANVAS_HEIGHT
+  );
+
+  waveGradient.addColorStop(0, 'rgba(255,255,255,0)');
+  waveGradient.addColorStop(0.35, 'rgba(255,255,255,0.02)');
+  waveGradient.addColorStop(0.5, 'rgba(255,255,255,' + profile.waveAlpha.toFixed(3) + ')');
+  waveGradient.addColorStop(0.65, 'rgba(255,255,255,0.03)');
+  waveGradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx.save();
+  drawPath(country.path);
+  ctx.globalAlpha = profile.borderAlpha;
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = profile.borderWidth;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  drawPath(country.path);
+  ctx.strokeStyle = waveGradient;
+  ctx.lineWidth = Math.max(1, profile.borderWidth - 0.1);
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([20, 34]);
+  ctx.lineDashOffset = -(nowMs * 0.085 + country.center.x * 0.18);
+  ctx.globalAlpha = profile.waveAlpha;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  const nowMs = performance.now();
+
+  // === Apply zoom transform ===
+  ctx.save();
+  ctx.translate(-viewOffsetX * viewZoom, -viewOffsetY * viewZoom);
+  ctx.scale(viewZoom, viewZoom);
+
+  // === Clear canvas (prevents trails with transparent SVGs) ===
+  ctx.fillStyle = COLORS.sea;
+  ctx.fillRect(viewOffsetX, viewOffsetY, LOGICAL_CANVAS_WIDTH / viewZoom, LOGICAL_CANVAS_HEIGHT / viewZoom);
+
+  // === SVG Map Background ===
+  if (mapImage) {
+    ctx.drawImage(mapImage, 0, 0, LOGICAL_CANVAS_WIDTH, LOGICAL_CANVAS_HEIGHT);
+  }
+
+  // === Country colored overlays ===
+  for (const c of countries) {
+    ctx.save();
+    drawPath(c.path);
+    ctx.clip();
+    const isHover = (hoverCountryId === c.id);
+    const isSelected = (selectedCountryId === c.id);
+    ctx.fillStyle = getOwnerOverlay(c.ownerId, isHover || isSelected);
+    ctx.fillRect(0, 0, LOGICAL_CANVAS_WIDTH, LOGICAL_CANVAS_HEIGHT);
+    drawCountryShimmerOverlay(c, nowMs, isHover || isSelected);
+    ctx.restore();
+  }
+
+  // === Animated country borders ===
+  for (const c of countries) {
+    const isHover = (hoverCountryId === c.id);
+    const isSelected = (selectedCountryId === c.id);
+    drawCountryBorderWave(c, nowMs, isHover || isSelected);
+  }
+
+  // === Intro glow on player country (Phase 2) ===
+  if (introGlowTimer > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(nowMs / 280);
+    const fade = Math.min(1, introGlowTimer / 0.6); // fade out last 0.6s
+    for (const c of countries) {
+      if (c.ownerId !== 0) continue;
+      ctx.save();
+      ctx.globalAlpha = (0.35 + pulse * 0.25) * fade;
+      ctx.strokeStyle = '#5dade2';
+      ctx.lineWidth = 14;
+      ctx.lineJoin = 'round';
+      drawPath(c.path);
+      ctx.stroke();
+      ctx.globalAlpha = (0.65 + pulse * 0.2) * fade;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 5;
+      drawPath(c.path);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // === Selection highlight ===
+  if (selectedCountryId) {
+    const sc = getCountryById(selectedCountryId);
+    if (sc) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+      // Multi-stroke glow (no shadowBlur to avoid bleeding)
+      ctx.save();
+      ctx.globalAlpha = 0.15 + pulse * 0.1;
+      ctx.strokeStyle = COLORS.selectedGlow;
+      ctx.lineWidth = 10;
+      ctx.lineJoin = 'round';
+      drawPath(sc.path);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.4 + pulse * 0.2;
+      ctx.strokeStyle = COLORS.selectedGlow;
+      ctx.lineWidth = 5;
+      ctx.lineJoin = 'round';
+      drawPath(sc.path);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = COLORS.selectedGlow;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      drawPath(sc.path);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // === Ghost line (selected to mouse) ===
+  if (selectedCountryId) {
+    const sc = getCountryById(selectedCountryId);
+    if (sc) {
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = 'rgba(241,196,15,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sc.center.x, sc.center.y);
+      ctx.lineTo(mousePos.x, mousePos.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
+  // === Nodes (country centers) ===
+  for (const c of countries) {
+    // Apply shake offset
+    let shakeOX = 0, shakeOY = 0;
+    if (c.shakeTime && c.shakeTime > 0) {
+      const shakeProg = c.shakeTime / 0.3; // 0→1
+      const osc = Math.sin(c.shakeTime * 45) * shakeProg; // fast oscillation, decaying
+      shakeOX = (c.shakeX || 0) * osc;
+      shakeOY = (c.shakeY || 0) * osc;
+    }
+    const cx = c.center.x + shakeOX;
+    const cy = c.center.y + shakeOY;
+    const radius = getCountryRenderRadius(c);
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = COLORS.nodeShadow;
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+
+    // White circle background
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS.nodeBg;
+    ctx.fill();
+    ctx.restore();
+
+    // Owner color ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = getOwnerColor(c.ownerId);
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Flag (scaled to dot size)
+    const fw = Math.round(radius * 1.08);
+    const fh = Math.round(fw / 2);
+    drawFlag(c.flagCode, cx - fw / 2, cy - fh / 2, fw, fh);
+
+    // Unit count
+    const units = Math.floor(c.unitsPrecise);
+    const fontSize = Math.max(10, Math.round(radius * 0.58));
+    ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    // Text shadow for depth
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+
+    // Text outline (thicker for contrast)
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 4;
+    ctx.strokeText(units, cx, cy + Math.round(radius * 0.31));
+
+    // Text fill — white for maximum readability
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(units, cx, cy + Math.round(radius * 0.31));
+    ctx.restore();
+  }
+
+  // === Country names ===
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (const c of countries) {
+    const cName = TCountry(c.id);
+    const cRadius = getCountryRenderRadius(c);
+
+    // Background pill for readability
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    const tw = ctx.measureText(cName).width;
+    const px = 6, py = 3;
+    const bx = c.center.x - tw / 2 - px;
+    const by = c.center.y - cRadius - 18;
+    const bw = tw + px * 2;
+    const bh = 16 + py;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    // Rounded rect
+    const r = 4;
+    ctx.moveTo(bx + r, by);
+    ctx.lineTo(bx + bw - r, by);
+    ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+    ctx.lineTo(bx + bw, by + bh - r);
+    ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+    ctx.lineTo(bx + r, by + bh);
+    ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+    ctx.lineTo(bx, by + r);
+    ctx.quadraticCurveTo(bx, by, bx + r, by);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Name text
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(cName, c.center.x, c.center.y - cRadius - 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(cName, c.center.x, c.center.y - cRadius - 3);
+  }
+
+  // === Transfer particles (drawn on top of everything) ===
+  for (const tr of transfers) {
+    if (tr.arrived) continue;
+    const flyTime = tr.elapsed - tr.departDelay;
+    if (flyTime < 0) continue; // not yet departed
+    const progress = clamp(flyTime / tr.travelTime, 0, 1);
+    const color = getOwnerColor(tr.ownerId);
+    const dx = tr.to.x - tr.from.x;
+    const dy = tr.to.y - tr.from.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const px = -dy / len;
+    const py = dx / len;
+
+    const x = lerp(tr.from.x, tr.to.x, progress) + px * tr.offset;
+    const y = lerp(tr.from.y, tr.to.y, progress) + py * tr.offset;
+
+    const R = 7; // particle radius
+
+    // Outer glow
+    ctx.beginPath();
+    ctx.arc(x, y, R + 4, 0, Math.PI * 2);
+    ctx.fillStyle = color + '33';
+    ctx.fill();
+
+    // White disc background
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.clip();
+
+    // Draw flag inside the clipped circle
+    if (tr.flagCode) {
+      drawFlagRaw(tr.flagCode, x - R, y - R * 0.6, R * 2, R * 1.2);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - R, y - R, R * 2, R * 2);
+    }
+    ctx.restore();
+
+    // Colored ring border
+    ctx.beginPath();
+    ctx.arc(x, y, R, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // === Impact / clash effects ===
+  for (const p of impactEffects) {
+    const alpha = clamp(p.life / p.maxLife, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (p.isFlash) {
+      // Central flash — white starburst
+      const r = p.size * (1 - alpha * 0.3);
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+      gradient.addColorStop(0.3, 'rgba(255,240,150,0.6)');
+      gradient.addColorStop(1, 'rgba(255,200,50,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      // Draw a small ⚔ cross / clash symbol
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      const s = r * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(p.x - s, p.y - s); ctx.lineTo(p.x + s, p.y + s);
+      ctx.moveTo(p.x + s, p.y - s); ctx.lineTo(p.x - s, p.y + s);
+      ctx.stroke();
+    } else {
+      // Spark particle
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+      // White core
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // === Conquest animations ===
+  drawConquestAnims();
+
+  // === End zoom transform — HUD is drawn in screen space ===
+  ctx.restore();
+
+  // === Zoom indicator ===
+  if (viewZoom > 1.02) {
+    ctx.save();
+    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(LOGICAL_CANVAS_WIDTH - 70, 42, 58, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText('x' + viewZoom.toFixed(1), LOGICAL_CANVAS_WIDTH - 16, 47);
+    ctx.restore();
+  }
+
+  // === HUD: Army Bar + Stats (HTML panels when bands exist, canvas fallback) ===
+  const armyTotals = computeArmyTotals();
+  // Build dynamic order: player (0) first, then all AI IDs sorted
+  const armyOrder = [0, ...[...new Set(countries.map(c => c.ownerId).filter(id => id >= 1))].sort((a, b) => a - b)];
+  const bandsVisible = (window._hudBandLeft >= 44 || window._hudBandRight >= 44);
+
+  if (bandsVisible) {
+    updateHUDPanels(armyTotals, armyOrder);
+  } else {
+    // Canvas fallback: draw army bar bottom-left
+    const barW = Math.min(LOGICAL_CANVAS_WIDTH * 0.46, 350);
+    const barH = 14;
+    const barX = 20;
+    const barY = LOGICAL_CANVAS_HEIGHT - barH - 20;
+    let totalUnits = 0;
+    for (const id of armyOrder) { if (armyTotals[id]) totalUnits += armyTotals[id]; }
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(barX, barY); ctx.lineTo(barX + barW, barY);
+    ctx.lineTo(barX + barW - 18, barY + barH); ctx.lineTo(barX + 18, barY + barH);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    let segX = barX;
+    for (const id of armyOrder) {
+      const val = armyTotals[id] || 0; if (val === 0) continue;
+      const segW = totalUnits > 0 ? (val / totalUnits) * barW : 0;
+      ctx.save(); ctx.fillStyle = getOwnerColor(id); ctx.globalAlpha = 0.82;
+      ctx.beginPath();
+      ctx.moveTo(segX, barY); ctx.lineTo(segX + segW, barY);
+      ctx.lineTo(segX + segW - 10, barY + barH); ctx.lineTo(segX + 10, barY + barH);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+      if (segW > 38) {
+        ctx.save(); ctx.font = 'bold 15px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 3;
+        ctx.fillText(Math.round(val), segX + segW / 2, barY + barH / 2); ctx.restore();
+      }
+      segX += segW;
+    }
+    ctx.save(); ctx.globalAlpha = 0.85; ctx.strokeStyle = '#d5d8dc'; ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(barX, barY); ctx.lineTo(barX + barW, barY);
+    ctx.lineTo(barX + barW - 18, barY + barH); ctx.lineTo(barX + 18, barY + barH);
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+
+    // Canvas live highlight (fallback)
+    if (gameState === 'playing' || gameState === 'paused') {
+      const liveHighlights = buildLiveHudHighlights(armyTotals);
+      if (liveHighlights.length) {
+        const currentHighlight = liveHighlights[Math.floor(performance.now() / 2600) % liveHighlights.length];
+        const labelText = currentHighlight.icon + ' ' + T(currentHighlight.labelKey);
+        const valueText = getStatEntityName(currentHighlight.kind, currentHighlight.targetKey);
+        const scoreText = String(currentHighlight.score);
+        ctx.save();
+        ctx.font = '700 10px "Segoe UI", sans-serif';
+        const labelWidth = ctx.measureText(labelText).width;
+        ctx.font = '800 13px "Segoe UI", sans-serif';
+        const valueWidth = ctx.measureText(valueText).width;
+        ctx.font = '900 15px "Segoe UI", sans-serif';
+        const scoreWidth = ctx.measureText(scoreText).width;
+        const panelW = Math.min(Math.max(labelWidth + valueWidth + scoreWidth + 50, 190), LOGICAL_CANVAS_WIDTH * 0.34);
+        const panelH = 34;
+        const panelX = LOGICAL_CANVAS_WIDTH - panelW - 20;
+        const panelY = LOGICAL_CANVAS_HEIGHT - panelH - 14;
+        ctx.fillStyle = 'rgba(7,12,20,0.72)';
+        ctx.beginPath();
+        ctx.moveTo(panelX + 12, panelY); ctx.lineTo(panelX + panelW, panelY);
+        ctx.lineTo(panelX + panelW - 12, panelY + panelH); ctx.lineTo(panelX, panelY + panelH);
+        ctx.lineTo(panelX + 12, panelY); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.font = '700 10px "Segoe UI", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(255,255,255,0.72)'; ctx.fillText(labelText, panelX + 12, panelY + 5);
+        ctx.font = '800 13px "Segoe UI", sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.96)';
+        ctx.fillText(valueText, panelX + 12, panelY + 17);
+        ctx.font = '900 15px "Segoe UI", sans-serif'; ctx.textAlign = 'right';
+        ctx.fillStyle = '#f1c40f'; ctx.fillText(scoreText, panelX + panelW - 12, panelY + 17);
+        ctx.restore();
+      }
+    }
+
+    // Canvas level title (fallback)
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    const titleW = 310;
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(titleW, 0); ctx.lineTo(titleW - 20, 36); ctx.lineTo(0, 36);
+    ctx.closePath(); ctx.fill();
+    ctx.font = 'bold 15px "Segoe UI", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillText(TLevel(currentLevel), 14, 10);
+    ctx.restore();
+  }
+
+  // Instruction text
+  if (shouldShowTutorial()) {
+    if (!selectedCountryId && gameState === 'playing') {
+      ctx.save();
+      const msg = isTouchDevice() ? T('instructSelectTouch') : T('instructSelect');
+      ctx.font = '13px "Segoe UI", sans-serif';
+      const tw = ctx.measureText(msg).width + 30;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(LOGICAL_CANVAS_WIDTH / 2 - tw / 2, LOGICAL_CANVAS_HEIGHT - 32, tw, 26);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillText(msg, LOGICAL_CANVAS_WIDTH / 2, LOGICAL_CANVAS_HEIGHT - 16);
+      ctx.restore();
+    } else if (selectedCountryId && gameState === 'playing') {
+      ctx.save();
+      const msg = isTouchDevice() ? T('instructTargetTouch') : T('instructTarget');
+      ctx.font = '13px "Segoe UI", sans-serif';
+      const tw = ctx.measureText(msg).width + 30;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(LOGICAL_CANVAS_WIDTH / 2 - tw / 2, LOGICAL_CANVAS_HEIGHT - 32, tw, 26);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(241,196,15,0.95)';
+      ctx.fillText(msg, LOGICAL_CANVAS_WIDTH / 2, LOGICAL_CANVAS_HEIGHT - 16);
+      ctx.restore();
+    }
+  }
+}
+
+// Update HTML side-panel HUD elements
+function updateHUDPanels(armyTotals, armyOrder) {
+  // Level title
+  const titleEl = document.getElementById('hud-level-title');
+  if (titleEl) titleEl.textContent = TLevel(currentLevel);
+
+  // Army bar row (proportional colored segments)
+  const barRow = document.getElementById('hud-army-bar-row');
+  if (barRow) {
+    let totalUnits = 0;
+    for (const id of armyOrder) { if (armyTotals[id]) totalUnits += armyTotals[id]; }
+    barRow.innerHTML = '';
+    for (const id of armyOrder) {
+      const val = armyTotals[id] || 0;
+      if (val === 0) continue;
+      const pct = totalUnits > 0 ? (val / totalUnits * 100).toFixed(1) : 0;
+      const seg = document.createElement('div');
+      seg.className = 'army-bar-seg';
+      seg.style.width = pct + '%';
+      seg.style.background = getOwnerColor(id);
+      seg.style.opacity = '0.88';
+      barRow.appendChild(seg);
+    }
+  }
+
+  // Army entries list
+  const entriesEl = document.getElementById('hud-army-entries');
+  if (entriesEl) {
+    const ownerNames = countries.reduce((map, c) => {
+      if (c.ownerId >= 0 && !map[c.ownerId]) map[c.ownerId] = (c.ownerId === 0 ? T('player') : c.name);
+      return map;
+    }, {});
+    entriesEl.innerHTML = '';
+    for (const id of armyOrder) {
+      const val = armyTotals[id] || 0;
+      if (val === 0) continue;
+      const row = document.createElement('div');
+      row.className = 'army-entry';
+      const dot = document.createElement('div');
+      dot.className = 'army-entry-dot';
+      dot.style.background = getOwnerColor(id);
+      const name = document.createElement('div');
+      name.className = 'army-entry-name';
+      name.textContent = id === 0 ? T('player') : ('IA ' + id);
+      const valEl = document.createElement('div');
+      valEl.className = 'army-entry-val';
+      valEl.textContent = Math.round(val);
+      row.appendChild(dot); row.appendChild(name); row.appendChild(valEl);
+      entriesEl.appendChild(row);
+    }
+  }
+
+  // Live stat highlight
+  if (gameState === 'playing') {
+    const liveHighlights = buildLiveHudHighlights(armyTotals);
+    if (liveHighlights.length) {
+      const h = liveHighlights[Math.floor(performance.now() / 2600) % liveHighlights.length];
+      const labelEl = document.getElementById('hud-live-stat-label');
+      const valEl = document.getElementById('hud-live-stat-value');
+      const scoreEl = document.getElementById('hud-live-stat-score');
+      if (labelEl) labelEl.textContent = h.icon + ' ' + T(h.labelKey);
+      if (valEl) valEl.textContent = getStatEntityName(h.kind, h.targetKey);
+      if (scoreEl) scoreEl.textContent = String(h.score);
+      const statPanel = document.getElementById('hud-live-stat');
+      if (statPanel) statPanel.style.display = 'block';
+    } else {
+      const statPanel = document.getElementById('hud-live-stat');
+      if (statPanel) statPanel.style.display = 'none';
+    }
+  }
+}
+
+// ============================================================
+// FLAG DRAWING
+// ============================================================
+// Raw flag painter (no clip/border — used by particles that clip themselves)
+function drawFlagRaw(code, x, y, w, h) {
+  if (code === 'fr' || code === 're') {
+    const sw = w / 3;
+    ctx.fillStyle = '#002395'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'br') {
+    // Brésil: vert avec losange jaune et cercle bleu
+    ctx.fillStyle = '#009739'; ctx.fillRect(x, y, w, h);
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(-Math.PI / 12);
+    ctx.fillStyle = '#FFCC29';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.45, h * 0.32, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.fillStyle = '#3E4095';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  } else if (code === 'ar') {
+    // Argentine: bleu ciel, blanc, bleu ciel horizontal + cercle jaune
+    const sh = h / 3;
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#F6B40E';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, h * 0.13, 0, 2 * Math.PI);
+    ctx.fill();
+  } else if (code === 'bo') {
+    // Bolivie: rouge, jaune, vert horizontal
+    const sh = h / 3;
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFD100'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#007934'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'co') {
+    // Colombie: jaune (moitié), bleu, rouge horizontal
+    const sh = h / 2;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, h * 0.25);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh + h * 0.25, w, h * 0.25);
+  } else if (code === 've') {
+    // Venezuela: jaune, bleu, rouge horizontal + arc d'étoiles blanches
+    const sh = h / 3;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh * 2, w, sh);
+    // Arc d'étoiles blanches
+    ctx.save();
+    ctx.translate(x + w / 2, y + sh + sh / 2);
+    ctx.rotate(Math.PI);
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.PI * (i + 1) / 9;
+      const rx = Math.cos(angle) * w * 0.22;
+      const ry = Math.sin(angle) * sh * 0.55;
+      ctx.save();
+      ctx.translate(rx, -ry);
+      ctx.rotate(-angle);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const a = Math.PI / 2 + j * 2 * Math.PI / 5;
+        const px = Math.cos(a) * 4, py = Math.sin(a) * 4;
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  } else if (code === 'gb') {
+    ctx.fillStyle = '#012169'; ctx.fillRect(x, y, w, h);
+    const cw = 3;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x + w / 2 - cw, y, cw * 2, h);
+    ctx.fillRect(x, y + h / 2 - cw, w, cw * 2);
+    ctx.fillStyle = '#C8102E';
+    ctx.fillRect(x + w / 2 - 1.5, y, 3, h);
+    ctx.fillRect(x, y + h / 2 - 1.5, w, 3);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+    ctx.stroke();
+    ctx.strokeStyle = '#C8102E'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+    ctx.stroke();
+  } else if (code === 'es') {
+    const sh = h / 4;
+    ctx.fillStyle = '#AA151B'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#F1BF00'; ctx.fillRect(x, y + sh, w, sh * 2);
+    ctx.fillStyle = '#AA151B'; ctx.fillRect(x, y + sh * 3, w, sh);
+  } else if (code === 'pt') {
+    ctx.fillStyle = '#006600'; ctx.fillRect(x, y, w * 0.4, h);
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x + w * 0.4, y, w * 0.6, h);
+    ctx.beginPath();
+    ctx.arc(x + w * 0.4, y + h / 2, h * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFCC00';
+    ctx.fill();
+  } else if (code === 'ie') {
+    const sw = w / 3;
+    ctx.fillStyle = '#169B62'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#FF883E'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'it') {
+    const sw = w / 3;
+    ctx.fillStyle = '#009246'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE2B37'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'ch') {
+    ctx.fillStyle = '#DA291C'; ctx.fillRect(x, y, w, h);
+    const cw = w * 0.18, cl = w * 0.55;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x + (w - cl) / 2, y + (h - cw) / 2, cl, cw);
+    ctx.fillRect(x + (w - cw) / 2, y + (h - cl) / 2, cw, cl);
+  } else if (code === 'de') {
+    const sh = h / 3;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#DD0000'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#FFCC00'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'pl') {
+    const sh = h / 2;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#DC143C'; ctx.fillRect(x, y + sh, w, sh);
+  } else if (code === 'at') {
+    const sh = h / 3;
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'cz') {
+    const sh = h / 2;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#D7141A'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.45, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = '#11457E'; ctx.fill();
+  } else if (code === 'no') {
+    ctx.fillStyle = '#BA0C2F'; ctx.fillRect(x, y, w, h);
+    const cx = x + w * 0.35, cw1 = w * 0.12, cw2 = w * 0.06;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(cx - cw1 / 2, y, cw1, h);
+    ctx.fillRect(x, y + h / 2 - cw1 / 2, w, cw1);
+    ctx.fillStyle = '#00205B';
+    ctx.fillRect(cx - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+  } else if (code === 'se') {
+    ctx.fillStyle = '#006AA7'; ctx.fillRect(x, y, w, h);
+    const cx = x + w * 0.35, cw1 = w * 0.12;
+    ctx.fillStyle = '#FECC02';
+    ctx.fillRect(cx - cw1 / 2, y, cw1, h);
+    ctx.fillRect(x, y + h / 2 - cw1 / 2, w, cw1);
+  } else if (code === 'fi') {
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    const cx = x + w * 0.35, cw1 = w * 0.12;
+    ctx.fillStyle = '#003580';
+    ctx.fillRect(cx - cw1 / 2, y, cw1, h);
+    ctx.fillRect(x, y + h / 2 - cw1 / 2, w, cw1);
+  } else if (code === 'is') {
+    ctx.fillStyle = '#003897'; ctx.fillRect(x, y, w, h);
+    const cx = x + w * 0.35, cw1 = w * 0.14, cw2 = w * 0.06;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(cx - cw1 / 2, y, cw1, h);
+    ctx.fillRect(x, y + h / 2 - cw1 / 2, w, cw1);
+    ctx.fillStyle = '#D72828';
+    ctx.fillRect(cx - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+  } else if (code === 'mg') {
+    // Madagascar: White vertical + Red/Green horizontal
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w * 0.33, h);
+    ctx.fillStyle = '#FC3D32'; ctx.fillRect(x + w * 0.33, y, w * 0.67, h / 2);
+    ctx.fillStyle = '#007E3A'; ctx.fillRect(x + w * 0.33, y + h / 2, w * 0.67, h / 2);
+  } else if (code === 'ma') {
+    // Maroc: Red + green star
+    ctx.fillStyle = '#C1272D'; ctx.fillRect(x, y, w, h);
+    const cx2 = x + w / 2, cy2 = y + h / 2, sr = h * 0.32;
+    ctx.strokeStyle = '#006233'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      const px = cx2 + sr * Math.cos(a), py = cy2 + sr * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+  } else if (code === 'dz') {
+    // Algérie: Green White vertical + red crescent & star
+    const sw = w / 2;
+    ctx.fillStyle = '#006233'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    const cx2 = x + w / 2, cy2 = y + h / 2, mr = h * 0.28;
+    ctx.fillStyle = '#D21034';
+    ctx.beginPath(); ctx.arc(cx2, cy2, mr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#006233';
+    ctx.beginPath(); ctx.arc(cx2 + mr * 0.25, cy2, mr * 0.8, 0, Math.PI * 2); ctx.fill();
+    // star
+    ctx.fillStyle = '#D21034';
+    const stR = mr * 0.35, stx = cx2 + mr * 0.3;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 4 * Math.PI / 5;
+      const px = stx + stR * Math.cos(a), py = cy2 + stR * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'za') {
+    // Afrique du Sud: simplified horizontal bands with Y shape
+    const sh = h / 3;
+    ctx.fillStyle = '#E03C31'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#007749'; ctx.fillRect(x, y + sh * 2, w, sh);
+    // Y-shape in blue
+    ctx.fillStyle = '#001489';
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.35, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath(); ctx.fill();
+    // Gold/yellow band outline
+    ctx.fillStyle = '#FFB81C';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.12); ctx.lineTo(x + w * 0.3, y + h / 2); ctx.lineTo(x, y + h * 0.88);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.22); ctx.lineTo(x + w * 0.22, y + h / 2); ctx.lineTo(x, y + h * 0.78);
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'ne') {
+    // Niger: Orange White Green horizontal + orange circle
+    const sh = h / 3;
+    ctx.fillStyle = '#E05206'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#0DB02B'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#E05206';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'ml') {
+    // Mali: Green Gold Red vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#14B53A'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'eg') {
+    // Egypte: Red White Black horizontal + gold eagle simplified
+    const sh = h / 3;
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh * 2, w, sh);
+    // simplified eagle marker
+    ctx.fillStyle = '#C09300';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'sd') {
+    // Soudan: Red White Black horizontal + green triangle
+    const sh = h / 3;
+    ctx.fillStyle = '#D21034'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.33, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = '#007229'; ctx.fill();
+  } else if (code === 'us') {
+    // USA: 13 stripes rouge/blanc + canton bleu
+    const stripeH = h / 13;
+    for (let i = 0; i < 13; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#B22234' : '#FFFFFF';
+      ctx.fillRect(x, y + i * stripeH, w, stripeH);
+    }
+    ctx.fillStyle = '#3C3B6E';
+    ctx.fillRect(x, y, w * 0.4, h * 0.53);
+  } else if (code === 'ca') {
+    // Canada: Rouge-Blanc-Rouge + feuille d'érable
+    const sw = w / 4;
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, w / 2, h);
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x + w * 0.75, y, sw, h);
+    ctx.fillStyle = '#FF0000';
+    const fcx = x + w / 2, fcy = y + h / 2, fs = Math.min(w, h) * 0.28;
+    ctx.beginPath();
+    ctx.moveTo(fcx, fcy - fs);
+    ctx.lineTo(fcx + fs * 0.2, fcy - fs * 0.4);
+    ctx.lineTo(fcx + fs * 0.8, fcy - fs * 0.3);
+    ctx.lineTo(fcx + fs * 0.4, fcy + fs * 0.1);
+    ctx.lineTo(fcx + fs * 0.6, fcy + fs * 0.7);
+    ctx.lineTo(fcx, fcy + fs * 0.35);
+    ctx.lineTo(fcx - fs * 0.6, fcy + fs * 0.7);
+    ctx.lineTo(fcx - fs * 0.4, fcy + fs * 0.1);
+    ctx.lineTo(fcx - fs * 0.8, fcy - fs * 0.3);
+    ctx.lineTo(fcx - fs * 0.2, fcy - fs * 0.4);
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'mx') {
+    // Mexique: Vert-Blanc-Rouge + aigle simplifié
+    const sw = w / 3;
+    ctx.fillStyle = '#006847'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x + sw * 2, y, sw, h);
+    ctx.fillStyle = '#8B6914';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.18, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'gl') {
+    // Groenland: haut blanc / bas rouge + cercle inversé décalé
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h / 2);
+    ctx.fillStyle = '#D00C33'; ctx.fillRect(x, y + h / 2, w, h / 2);
+    const gcx = x + w * 0.33, gcy = y + h / 2, gr = h * 0.28;
+    ctx.fillStyle = '#D00C33';
+    ctx.beginPath(); ctx.arc(gcx, gcy, gr, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(gcx, gcy, gr, 0, Math.PI); ctx.closePath(); ctx.fill();
+  } else if (code === 'au') {
+    // Australie: bleu avec Union Jack simplifié + étoiles
+    ctx.fillStyle = '#00008B'; ctx.fillRect(x, y, w, h);
+    const qw = w * 0.45, qh = h * 0.5;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x, y + qh * 0.4, qw, qh * 0.2);
+    ctx.fillRect(x + qw * 0.4, y, qw * 0.2, qh);
+    ctx.fillStyle = '#CC0000';
+    ctx.fillRect(x, y + qh * 0.45, qw, qh * 0.1);
+    ctx.fillRect(x + qw * 0.45, y, qw * 0.1, qh);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w * 0.22, y + h * 0.72, h * 0.08, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'cn') {
+    // Chine: rouge + grande étoile jaune + 4 petites
+    ctx.fillStyle = '#DE2910'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFDE00';
+    const cncx = x + w * 0.22, cncy = y + h * 0.3, cnsr = h * 0.22;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI/2 + i*4*Math.PI/5; if(i===0) ctx.moveTo(cncx+cnsr*Math.cos(a),cncy+cnsr*Math.sin(a)); else ctx.lineTo(cncx+cnsr*Math.cos(a),cncy+cnsr*Math.sin(a)); }
+    ctx.closePath(); ctx.fill();
+    [[0.45,0.12],[0.52,0.26],[0.52,0.46],[0.45,0.62]].forEach(([dx,dy]) => {
+      const scx=x+w*dx, scy=y+h*dy, sr=h*0.09;
+      ctx.beginPath();
+      for (let i=0;i<5;i++){const a=-Math.PI/2+i*4*Math.PI/5;if(i===0)ctx.moveTo(scx+sr*Math.cos(a),scy+sr*Math.sin(a));else ctx.lineTo(scx+sr*Math.cos(a),scy+sr*Math.sin(a));}
+      ctx.closePath(); ctx.fill();
+    });
+  } else if (code === 'in') {
+    // Inde: safran / blanc / vert + roue bleue
+    const sh = h / 3;
+    ctx.fillStyle = '#FF9933'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#138808'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#000080';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.17, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.11, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'jp') {
+    // Japon: blanc + disque rouge
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#BC002D';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.3, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ru') {
+    // Russie: blanc / bleu / rouge horizontal
+    const sh = h / 3;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#0039A6'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y + sh*2, w, sh);
+  } else if (code === 'id') {
+    // Indonésie: rouge / blanc horizontal
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y, w, h/2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + h/2, w, h/2);
+  } else if (code === 'pe') {
+    // Pérou: rouge / blanc / rouge vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#D91023'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#D91023'; ctx.fillRect(x + sw*2, y, sw, h);
+  } else if (code === 'kz') {
+    // Kazakhstan: bleu ciel + soleil jaune
+    ctx.fillStyle = '#00AFCA'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FEC50C';
+    ctx.beginPath(); ctx.arc(x + w*0.5, y + h*0.42, h*0.22, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'mn') {
+    // Mongolie: rouge / bleu / rouge vertical + symbole jaune
+    const sw = w / 3;
+    ctx.fillStyle = '#C4272F'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#015197'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#C4272F'; ctx.fillRect(x + sw*2, y, sw, h);
+    ctx.fillStyle = '#F9CF02';
+    ctx.beginPath(); ctx.arc(x + sw*0.5, y + h*0.38, h*0.16, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'sa') {
+    // Arabie Saoudite: vert + croissant blanc + épée
+    ctx.fillStyle = '#006C35'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w*0.42, y + h*0.38, h*0.22, Math.PI*0.65, Math.PI*2.35); ctx.fill();
+    ctx.fillStyle = '#006C35';
+    ctx.beginPath(); ctx.arc(x + w*0.48, y + h*0.38, h*0.17, Math.PI*0.65, Math.PI*2.35); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x + w*0.22, y + h*0.62, w*0.56, h*0.07);
+  } else if (code === 'et') {
+    // Éthiopie: vert / jaune / rouge + étoile bleue
+    const sh = h / 3;
+    ctx.fillStyle = '#078930'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FCDD09'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#DA121A'; ctx.fillRect(x, y + sh*2, w, sh);
+    ctx.fillStyle = '#0F47AF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.24, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FCDD09';
+    const escx=x+w/2, escy=y+h/2, esr=h*0.2;
+    ctx.beginPath();
+    for(let i=0;i<5;i++){const a=-Math.PI/2+i*4*Math.PI/5;if(i===0)ctx.moveTo(escx+esr*Math.cos(a),escy+esr*Math.sin(a));else ctx.lineTo(escx+esr*Math.cos(a),escy+esr*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'af') {
+    // Afghanistan: noir / rouge / vert vertical + emblème blanc
+    const sw = w / 3;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#D32011'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#009A44'; ctx.fillRect(x + sw*2, y, sw, h);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.18, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ao') {
+    // Angola: rouge / noir horizontal + emblème jaune
+    ctx.fillStyle = '#CC0000'; ctx.fillRect(x, y, w, h/2);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + h/2, w, h/2);
+    ctx.fillStyle = '#FFCB00';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.18, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'cd') {
+    // Congo RD: bleu + diagonale rouge-jaune + étoile
+    ctx.fillStyle = '#007FFF'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#F7D618';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.62); ctx.lineTo(x+w*0.38,y+h); ctx.lineTo(x+w,y+h*0.38); ctx.lineTo(x+w*0.62,y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#CE1021';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.54); ctx.lineTo(x+w*0.46,y+h); ctx.lineTo(x+w,y+h*0.46); ctx.lineTo(x+w*0.54,y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#F7D618';
+    ctx.beginPath(); ctx.arc(x+w*0.13, y+h*0.14, h*0.1, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ly') {
+    // Libye: vert / noir / rouge + croissant blanc
+    const sh = h / 4;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#239E46'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#E70013'; ctx.fillRect(x, y + h - sh, w, sh);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x+w*0.42, y+h/2, h*0.2, Math.PI*0.62, Math.PI*1.38); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(x+w*0.48, y+h/2, h*0.17, Math.PI*0.62, Math.PI*1.38); ctx.fill();
+  } else if (code === 'na') {
+    // Namibie: bleu + triangle vert + bande rouge + soleil
+    ctx.fillStyle = '#003580'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#009543';
+    ctx.beginPath(); ctx.moveTo(x+w,y); ctx.lineTo(x+w,y+h); ctx.lineTo(x,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#CC0000';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.35); ctx.lineTo(x+w*0.65,y+h); ctx.lineTo(x+w*0.35,y+h); ctx.lineTo(x,y+h*0.65); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(x+w*0.22, y+h*0.28, h*0.15, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'tz') {
+    // Tanzanie: vert + bleu + bande noire diagonale
+    ctx.fillStyle = '#1EB53A'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#00A3DD';
+    ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FCD116';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.68); ctx.lineTo(x+w*0.32,y+h); ctx.lineTo(x+w*0.68,y); ctx.lineTo(x,y+h*0.32); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1A1A1A';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.58); ctx.lineTo(x+w*0.42,y+h); ctx.lineTo(x+w*0.58,y); ctx.lineTo(x,y+h*0.42); ctx.closePath(); ctx.fill();
+  } else if (code === 'xs') {
+    ctx.fillStyle = '#8B0000'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x+w*0.55,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h*0.45); ctx.lineTo(x+w*0.45,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#006400';
+    ctx.beginPath();
+    for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.2:h*0.08;if(i===0)ctx.moveTo(x+w*0.55+r*Math.cos(a),y+h*0.55+r*Math.sin(a));else ctx.lineTo(x+w*0.55+r*Math.cos(a),y+h*0.55+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'xn') {
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    const cw=w*0.14;
+    ctx.fillStyle = '#002868'; ctx.fillRect(x+w/2-cw/2,y,cw,h); ctx.fillRect(x,y+h/2-cw/2,w,cw);
+    ctx.fillStyle = '#BF0A30';
+    [[0.26,0.26],[0.74,0.26],[0.26,0.74],[0.74,0.74]].forEach(([dx,dy])=>{
+      ctx.beginPath();
+      for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.11:h*0.045;if(i===0)ctx.moveTo(x+w*dx+r*Math.cos(a),y+h*dy+r*Math.sin(a));else ctx.lineTo(x+w*dx+r*Math.cos(a),y+h*dy+r*Math.sin(a));}
+      ctx.closePath(); ctx.fill();
+    });
+  } else if (code === 'xo') {
+    ctx.fillStyle = '#005F73'; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = h*0.065; ctx.lineCap = 'round';
+    for(let i=0;i<3;i++){const wy=y+h*(0.35+i*0.22);ctx.beginPath();ctx.moveTo(x+w*0.3,wy);ctx.quadraticCurveTo(x+w*0.5,wy-h*0.07,x+w*0.7,wy);ctx.stroke();}
+    ctx.fillStyle = '#EFB700';
+    ctx.beginPath(); ctx.arc(x+w*0.21,y+h*0.24,h*0.17,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#005F73';
+    ctx.beginPath(); ctx.arc(x+w*0.21,y+h*0.24,h*0.09,0,Math.PI*2); ctx.fill();
+  } else if (code === 'xf') {
+    ctx.fillStyle = '#000000'; ctx.fillRect(x,y,w,h/3);
+    ctx.fillStyle = '#CC0000'; ctx.fillRect(x,y+h/3,w,h/3);
+    ctx.fillStyle = '#007A00'; ctx.fillRect(x,y+h*2/3,w,h/3);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.22:h*0.09;if(i===0)ctx.moveTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));else ctx.lineTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'xg') {
+    ctx.fillStyle = '#BCEAF5'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#2667A8'; ctx.fillRect(x,y+h*0.72,w,h*0.28);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = h*0.055; ctx.lineCap = 'round';
+    const fcx=x+w/2,fcy=y+h*0.41,fl=h*0.23;
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      ctx.beginPath(); ctx.moveTo(fcx,fcy); ctx.lineTo(fcx+fl*Math.cos(a),fcy+fl*Math.sin(a)); ctx.stroke();
+      ctx.lineWidth=h*0.038;
+      const mx=fcx+fl*0.52*Math.cos(a),my=fcy+fl*0.52*Math.sin(a);
+      ctx.beginPath(); ctx.moveTo(mx-fl*0.16*Math.cos(a+Math.PI/2),my-fl*0.16*Math.sin(a+Math.PI/2)); ctx.lineTo(mx+fl*0.16*Math.cos(a+Math.PI/2),my+fl*0.16*Math.sin(a+Math.PI/2)); ctx.stroke();
+      ctx.lineWidth=h*0.055;
+    }
+  } else if (code === 'xi') {
+    ctx.fillStyle = '#1A0050'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    for(let i=0;i<16;i++){const a=i*Math.PI/8,r=(i%2===0)?h*0.34:h*0.16;if(i===0)ctx.moveTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));else ctx.lineTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1A0050';
+    ctx.beginPath(); ctx.arc(x+w/2,y+h/2,h*0.11,0,Math.PI*2); ctx.fill();
+  } else if (code === 'xe') {
+    ctx.fillStyle = '#006B6B'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#003D3D'; ctx.fillRect(x,y+h*0.78,w,h*0.22);
+    ctx.fillStyle = '#FFFFFF';
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2+i*2*Math.PI/5,ex=x+w/2+h*0.28*Math.cos(a),ey=y+h*0.44+h*0.28*Math.sin(a);
+      ctx.beginPath();
+      for(let j=0;j<10;j++){const sa=-Math.PI/2+j*Math.PI/5,r=(j%2===0)?h*0.1:h*0.04;if(j===0)ctx.moveTo(ex+r*Math.cos(sa),ey+r*Math.sin(sa));else ctx.lineTo(ex+r*Math.cos(sa),ey+r*Math.sin(sa));}
+      ctx.closePath(); ctx.fill();
+    }
+  } else {
+    ctx.fillStyle = '#999';
+    ctx.fillRect(x, y, w, h);
+  }
+}
+
+function drawFlag(codeIn, x, y, w, h) {
+  const code = codeIn === 're' ? 'fr' : codeIn;
+  ctx.save();
+  // Clip to rounded rect
+  const r = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.clip();
+
+  if (code === 'fr') {
+    // France: Blue White Red vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#002395'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'br') {
+    // Brésil
+    ctx.fillStyle = '#009739'; ctx.fillRect(x, y, w, h);
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(-Math.PI / 12);
+    ctx.fillStyle = '#FFCC29';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.45, h * 0.32, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.fillStyle = '#3E4095';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  } else if (code === 'ar') {
+    // Argentine
+    const sh = h / 3;
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#74ACDF'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#F6B40E';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, h * 0.13, 0, 2 * Math.PI);
+    ctx.fill();
+  } else if (code === 'bo') {
+    // Bolivie
+    const sh = h / 3;
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFD100'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#007934'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'co') {
+    // Colombie
+    const sh = h / 2;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, h * 0.25);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh + h * 0.25, w, h * 0.25);
+  } else if (code === 've') {
+    // Venezuela
+    const sh = h / 3;
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#003893'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y + sh * 2, w, sh);
+    // Arc d'étoiles blanches
+    ctx.save();
+    ctx.translate(x + w / 2, y + sh + sh / 2);
+    ctx.rotate(Math.PI);
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.PI * (i + 1) / 9;
+      const rx = Math.cos(angle) * w * 0.22;
+      const ry = Math.sin(angle) * sh * 0.55;
+      ctx.save();
+      ctx.translate(rx, -ry);
+      ctx.rotate(-angle);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const a = Math.PI / 2 + j * 2 * Math.PI / 5;
+        const px = Math.cos(a) * 4, py = Math.sin(a) * 4;
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  } else if (code === 'gb') {
+    // UK: simplified Union Jack
+    ctx.fillStyle = '#012169'; ctx.fillRect(x, y, w, h);
+    // White cross
+    const cw = 3;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x + w / 2 - cw, y, cw * 2, h);
+    ctx.fillRect(x, y + h / 2 - cw, w, cw * 2);
+    // Red cross
+    const rw = 1.5;
+    ctx.fillStyle = '#C8102E';
+    ctx.fillRect(x + w / 2 - rw, y, rw * 2, h);
+    ctx.fillRect(x, y + h / 2 - rw, w, rw * 2);
+    // White diagonals
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+    ctx.stroke();
+    // Red diagonals
+    ctx.strokeStyle = '#C8102E';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y + h);
+    ctx.moveTo(x + w, y); ctx.lineTo(x, y + h);
+    ctx.stroke();
+  } else if (code === 'es') {
+    // Spain: Red Yellow Red horizontal
+    const sh = h / 4;
+    ctx.fillStyle = '#AA151B'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#F1BF00'; ctx.fillRect(x, y + sh, w, sh * 2);
+    ctx.fillStyle = '#AA151B'; ctx.fillRect(x, y + sh * 3, w, sh);
+  } else if (code === 'pt') {
+    // Portugal: Green + Red vertical
+    ctx.fillStyle = '#006600'; ctx.fillRect(x, y, w * 0.4, h);
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x + w * 0.4, y, w * 0.6, h);
+    // Yellow circle at border
+    ctx.beginPath();
+    ctx.arc(x + w * 0.4, y + h / 2, h * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFCC00';
+    ctx.fill();
+  } else if (code === 'ie') {
+    // Ireland: Green White Orange vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#169B62'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#FF883E'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'it') {
+    // Italy: Green White Red vertical
+    const sw = w / 3;
+    ctx.fillStyle = '#009246'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE2B37'; ctx.fillRect(x + sw * 2, y, sw, h);
+  } else if (code === 'ch') {
+    // Switzerland: White cross on red
+    ctx.fillStyle = '#DA291C'; ctx.fillRect(x, y, w, h);
+    const cw = w * 0.18, cl = w * 0.55;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x + (w - cl) / 2, y + (h - cw) / 2, cl, cw);
+    ctx.fillRect(x + (w - cw) / 2, y + (h - cl) / 2, cw, cl);
+  } else if (code === 'de') {
+    // Germany: Black Red Gold horizontal
+    const sh = h / 3;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#DD0000'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#FFCC00'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'pl') {
+    // Poland: White Red horizontal
+    const sh = h / 2;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#DC143C'; ctx.fillRect(x, y + sh, w, sh);
+  } else if (code === 'at') {
+    // Austria: Red White Red horizontal
+    const sh = h / 3;
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#ED2939'; ctx.fillRect(x, y + sh * 2, w, sh);
+  } else if (code === 'cz') {
+    // Czech Republic: White Red + blue triangle
+    const sh = h / 2;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#D7141A'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.45, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = '#11457E'; ctx.fill();
+  } else if (code === 'no') {
+    // Norway: Red + blue/white Nordic cross
+    ctx.fillStyle = '#BA0C2F'; ctx.fillRect(x, y, w, h);
+    const cx2 = x + w * 0.35, cw2 = w * 0.12, cw3 = w * 0.06;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(cx2 - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+    ctx.fillStyle = '#00205B';
+    ctx.fillRect(cx2 - cw3 / 2, y, cw3, h);
+    ctx.fillRect(x, y + h / 2 - cw3 / 2, w, cw3);
+  } else if (code === 'se') {
+    // Sweden: Blue + yellow Nordic cross
+    ctx.fillStyle = '#006AA7'; ctx.fillRect(x, y, w, h);
+    const cx2 = x + w * 0.35, cw2 = w * 0.12;
+    ctx.fillStyle = '#FECC02';
+    ctx.fillRect(cx2 - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+  } else if (code === 'fi') {
+    // Finland: White + blue Nordic cross
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    const cx2 = x + w * 0.35, cw2 = w * 0.12;
+    ctx.fillStyle = '#003580';
+    ctx.fillRect(cx2 - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+  } else if (code === 'is') {
+    // Iceland: Blue + red/white Nordic cross
+    ctx.fillStyle = '#003897'; ctx.fillRect(x, y, w, h);
+    const cx2 = x + w * 0.35, cw2 = w * 0.14, cw3 = w * 0.06;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(cx2 - cw2 / 2, y, cw2, h);
+    ctx.fillRect(x, y + h / 2 - cw2 / 2, w, cw2);
+    ctx.fillStyle = '#D72828';
+    ctx.fillRect(cx2 - cw3 / 2, y, cw3, h);
+    ctx.fillRect(x, y + h / 2 - cw3 / 2, w, cw3);
+  } else if (code === 'mg') {
+    // Madagascar
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w * 0.33, h);
+    ctx.fillStyle = '#FC3D32'; ctx.fillRect(x + w * 0.33, y, w * 0.67, h / 2);
+    ctx.fillStyle = '#007E3A'; ctx.fillRect(x + w * 0.33, y + h / 2, w * 0.67, h / 2);
+  } else if (code === 'ma') {
+    // Maroc
+    ctx.fillStyle = '#C1272D'; ctx.fillRect(x, y, w, h);
+    const cx3 = x + w / 2, cy3 = y + h / 2, sr = h * 0.32;
+    ctx.strokeStyle = '#006233'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      const px = cx3 + sr * Math.cos(a), py = cy3 + sr * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+  } else if (code === 'dz') {
+    // Algérie
+    const sw2 = w / 2;
+    ctx.fillStyle = '#006233'; ctx.fillRect(x, y, sw2, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw2, y, sw2, h);
+    const cx3 = x + w / 2, cy3 = y + h / 2, mr = h * 0.28;
+    ctx.fillStyle = '#D21034';
+    ctx.beginPath(); ctx.arc(cx3, cy3, mr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#006233';
+    ctx.beginPath(); ctx.arc(cx3 + mr * 0.25, cy3, mr * 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#D21034';
+    const stR = mr * 0.35, stx = cx3 + mr * 0.3;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 4 * Math.PI / 5;
+      const px = stx + stR * Math.cos(a), py = cy3 + stR * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'za') {
+    // Afrique du Sud
+    const sh2 = h / 3;
+    ctx.fillStyle = '#E03C31'; ctx.fillRect(x, y, w, sh2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh2, w, sh2);
+    ctx.fillStyle = '#007749'; ctx.fillRect(x, y + sh2 * 2, w, sh2);
+    ctx.fillStyle = '#001489';
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.35, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFB81C';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.12); ctx.lineTo(x + w * 0.3, y + h / 2); ctx.lineTo(x, y + h * 0.88);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.22); ctx.lineTo(x + w * 0.22, y + h / 2); ctx.lineTo(x, y + h * 0.78);
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'ne') {
+    // Niger
+    const sh2 = h / 3;
+    ctx.fillStyle = '#E05206'; ctx.fillRect(x, y, w, sh2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh2, w, sh2);
+    ctx.fillStyle = '#0DB02B'; ctx.fillRect(x, y + sh2 * 2, w, sh2);
+    ctx.fillStyle = '#E05206';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'ml') {
+    // Mali
+    const sw2 = w / 3;
+    ctx.fillStyle = '#14B53A'; ctx.fillRect(x, y, sw2, h);
+    ctx.fillStyle = '#FCD116'; ctx.fillRect(x + sw2, y, sw2, h);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x + sw2 * 2, y, sw2, h);
+  } else if (code === 'eg') {
+    // Egypte
+    const sh2 = h / 3;
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y, w, sh2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh2, w, sh2);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh2 * 2, w, sh2);
+    ctx.fillStyle = '#C09300';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.14, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'sd') {
+    // Soudan
+    const sh2 = h / 3;
+    ctx.fillStyle = '#D21034'; ctx.fillRect(x, y, w, sh2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh2, w, sh2);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + sh2 * 2, w, sh2);
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w * 0.33, y + h / 2); ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.fillStyle = '#007229'; ctx.fill();
+  } else if (code === 'us') {
+    // USA: 13 stripes rouge/blanc + canton bleu
+    const stripeH = h / 13;
+    for (let i = 0; i < 13; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#B22234' : '#FFFFFF';
+      ctx.fillRect(x, y + i * stripeH, w, stripeH);
+    }
+    ctx.fillStyle = '#3C3B6E';
+    ctx.fillRect(x, y, w * 0.4, h * 0.53);
+  } else if (code === 'ca') {
+    // Canada: Rouge-Blanc-Rouge + feuille d'érable
+    const sw = w / 4;
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, w / 2, h);
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(x + w * 0.75, y, sw, h);
+    ctx.fillStyle = '#FF0000';
+    const fcx = x + w / 2, fcy = y + h / 2, fs = Math.min(w, h) * 0.28;
+    ctx.beginPath();
+    ctx.moveTo(fcx, fcy - fs);
+    ctx.lineTo(fcx + fs * 0.2, fcy - fs * 0.4);
+    ctx.lineTo(fcx + fs * 0.8, fcy - fs * 0.3);
+    ctx.lineTo(fcx + fs * 0.4, fcy + fs * 0.1);
+    ctx.lineTo(fcx + fs * 0.6, fcy + fs * 0.7);
+    ctx.lineTo(fcx, fcy + fs * 0.35);
+    ctx.lineTo(fcx - fs * 0.6, fcy + fs * 0.7);
+    ctx.lineTo(fcx - fs * 0.4, fcy + fs * 0.1);
+    ctx.lineTo(fcx - fs * 0.8, fcy - fs * 0.3);
+    ctx.lineTo(fcx - fs * 0.2, fcy - fs * 0.4);
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'mx') {
+    // Mexique: Vert-Blanc-Rouge + aigle simplifié
+    const sw = w / 3;
+    ctx.fillStyle = '#006847'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x + sw * 2, y, sw, h);
+    ctx.fillStyle = '#8B6914';
+    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.18, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'gl') {
+    // Groenland: haut blanc / bas rouge + cercle inversé décalé
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h / 2);
+    ctx.fillStyle = '#D00C33'; ctx.fillRect(x, y + h / 2, w, h / 2);
+    const gcx = x + w * 0.33, gcy = y + h / 2, gr = h * 0.28;
+    ctx.fillStyle = '#D00C33';
+    ctx.beginPath(); ctx.arc(gcx, gcy, gr, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(gcx, gcy, gr, 0, Math.PI); ctx.closePath(); ctx.fill();
+  } else if (code === 'au') {
+    // Australie: bleu avec Union Jack simplifié + étoiles
+    ctx.fillStyle = '#00008B'; ctx.fillRect(x, y, w, h);
+    const qw = w * 0.45, qh = h * 0.5;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x, y + qh * 0.4, qw, qh * 0.2);
+    ctx.fillRect(x + qw * 0.4, y, qw * 0.2, qh);
+    ctx.fillStyle = '#CC0000';
+    ctx.fillRect(x, y + qh * 0.45, qw, qh * 0.1);
+    ctx.fillRect(x + qw * 0.45, y, qw * 0.1, qh);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w * 0.22, y + h * 0.72, h * 0.08, 0, Math.PI * 2); ctx.fill();
+  } else if (code === 'cn') {
+    ctx.fillStyle = '#DE2910'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFDE00';
+    const cncx = x + w * 0.22, cncy = y + h * 0.3, cnsr = h * 0.22;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI/2 + i*4*Math.PI/5; if(i===0) ctx.moveTo(cncx+cnsr*Math.cos(a),cncy+cnsr*Math.sin(a)); else ctx.lineTo(cncx+cnsr*Math.cos(a),cncy+cnsr*Math.sin(a)); }
+    ctx.closePath(); ctx.fill();
+    [[0.45,0.12],[0.52,0.26],[0.52,0.46],[0.45,0.62]].forEach(([dx,dy]) => {
+      const scx=x+w*dx, scy=y+h*dy, sr=h*0.09;
+      ctx.beginPath();
+      for (let i=0;i<5;i++){const a=-Math.PI/2+i*4*Math.PI/5;if(i===0)ctx.moveTo(scx+sr*Math.cos(a),scy+sr*Math.sin(a));else ctx.lineTo(scx+sr*Math.cos(a),scy+sr*Math.sin(a));}
+      ctx.closePath(); ctx.fill();
+    });
+  } else if (code === 'in') {
+    const sh = h / 3;
+    ctx.fillStyle = '#FF9933'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#138808'; ctx.fillRect(x, y + sh * 2, w, sh);
+    ctx.fillStyle = '#000080';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.17, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.11, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'jp') {
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#BC002D';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.3, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ru') {
+    const sh = h / 3;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#0039A6'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#D52B1E'; ctx.fillRect(x, y + sh*2, w, sh);
+  } else if (code === 'id') {
+    ctx.fillStyle = '#CE1126'; ctx.fillRect(x, y, w, h/2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y + h/2, w, h/2);
+  } else if (code === 'pe') {
+    const sw = w / 3;
+    ctx.fillStyle = '#D91023'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#D91023'; ctx.fillRect(x + sw*2, y, sw, h);
+  } else if (code === 'kz') {
+    ctx.fillStyle = '#00AFCA'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FEC50C';
+    ctx.beginPath(); ctx.arc(x + w*0.5, y + h*0.42, h*0.22, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'mn') {
+    const sw = w / 3;
+    ctx.fillStyle = '#C4272F'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#015197'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#C4272F'; ctx.fillRect(x + sw*2, y, sw, h);
+    ctx.fillStyle = '#F9CF02';
+    ctx.beginPath(); ctx.arc(x + sw*0.5, y + h*0.38, h*0.16, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'sa') {
+    ctx.fillStyle = '#006C35'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x+w*0.42, y+h*0.38, h*0.22, Math.PI*0.65, Math.PI*2.35); ctx.fill();
+    ctx.fillStyle = '#006C35';
+    ctx.beginPath(); ctx.arc(x+w*0.48, y+h*0.38, h*0.17, Math.PI*0.65, Math.PI*2.35); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x + w*0.22, y + h*0.62, w*0.56, h*0.07);
+  } else if (code === 'et') {
+    const sh = h / 3;
+    ctx.fillStyle = '#078930'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#FCDD09'; ctx.fillRect(x, y + sh, w, sh);
+    ctx.fillStyle = '#DA121A'; ctx.fillRect(x, y + sh*2, w, sh);
+    ctx.fillStyle = '#0F47AF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.24, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FCDD09';
+    const escx=x+w/2, escy=y+h/2, esr=h*0.2;
+    ctx.beginPath();
+    for(let i=0;i<5;i++){const a=-Math.PI/2+i*4*Math.PI/5;if(i===0)ctx.moveTo(escx+esr*Math.cos(a),escy+esr*Math.sin(a));else ctx.lineTo(escx+esr*Math.cos(a),escy+esr*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'af') {
+    const sw = w / 3;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, sw, h);
+    ctx.fillStyle = '#D32011'; ctx.fillRect(x + sw, y, sw, h);
+    ctx.fillStyle = '#009A44'; ctx.fillRect(x + sw*2, y, sw, h);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.18, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ao') {
+    ctx.fillStyle = '#CC0000'; ctx.fillRect(x, y, w, h/2);
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y + h/2, w, h/2);
+    ctx.fillStyle = '#FFCB00';
+    ctx.beginPath(); ctx.arc(x + w/2, y + h/2, h*0.18, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'cd') {
+    ctx.fillStyle = '#007FFF'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#F7D618';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.62); ctx.lineTo(x+w*0.38,y+h); ctx.lineTo(x+w,y+h*0.38); ctx.lineTo(x+w*0.62,y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#CE1021';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.54); ctx.lineTo(x+w*0.46,y+h); ctx.lineTo(x+w,y+h*0.46); ctx.lineTo(x+w*0.54,y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#F7D618';
+    ctx.beginPath(); ctx.arc(x+w*0.13, y+h*0.14, h*0.1, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'ly') {
+    const sh = h / 4;
+    ctx.fillStyle = '#000000'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#239E46'; ctx.fillRect(x, y, w, sh);
+    ctx.fillStyle = '#E70013'; ctx.fillRect(x, y + h - sh, w, sh);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(x+w*0.42, y+h/2, h*0.2, Math.PI*0.62, Math.PI*1.38); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(x+w*0.48, y+h/2, h*0.17, Math.PI*0.62, Math.PI*1.38); ctx.fill();
+  } else if (code === 'na') {
+    ctx.fillStyle = '#003580'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#009543';
+    ctx.beginPath(); ctx.moveTo(x+w,y); ctx.lineTo(x+w,y+h); ctx.lineTo(x,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#CC0000';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.35); ctx.lineTo(x+w*0.65,y+h); ctx.lineTo(x+w*0.35,y+h); ctx.lineTo(x,y+h*0.65); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(x+w*0.22, y+h*0.28, h*0.15, 0, Math.PI*2); ctx.fill();
+  } else if (code === 'tz') {
+    ctx.fillStyle = '#1EB53A'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#00A3DD';
+    ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FCD116';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.68); ctx.lineTo(x+w*0.32,y+h); ctx.lineTo(x+w*0.68,y); ctx.lineTo(x,y+h*0.32); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1A1A1A';
+    ctx.beginPath(); ctx.moveTo(x,y+h*0.58); ctx.lineTo(x+w*0.42,y+h); ctx.lineTo(x+w*0.58,y); ctx.lineTo(x,y+h*0.42); ctx.closePath(); ctx.fill();
+  } else if (code === 'xs') {
+    // Amérique du Sud fictive : cramoisi + bande or diagonale + étoile verte
+    ctx.fillStyle = '#8B0000'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x+w*0.55,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w,y+h*0.45); ctx.lineTo(x+w*0.45,y+h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#006400';
+    ctx.beginPath();
+    for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.2:h*0.08;if(i===0)ctx.moveTo(x+w*0.55+r*Math.cos(a),y+h*0.55+r*Math.sin(a));else ctx.lineTo(x+w*0.55+r*Math.cos(a),y+h*0.55+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'xn') {
+    // Amérique du Nord fictive : blanc + grande croix bleue + 4 étoiles rouges
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h);
+    const cw=w*0.14;
+    ctx.fillStyle = '#002868'; ctx.fillRect(x+w/2-cw/2,y,cw,h); ctx.fillRect(x,y+h/2-cw/2,w,cw);
+    ctx.fillStyle = '#BF0A30';
+    [[0.26,0.26],[0.74,0.26],[0.26,0.74],[0.74,0.74]].forEach(([dx,dy])=>{
+      ctx.beginPath();
+      for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.11:h*0.045;if(i===0)ctx.moveTo(x+w*dx+r*Math.cos(a),y+h*dy+r*Math.sin(a));else ctx.lineTo(x+w*dx+r*Math.cos(a),y+h*dy+r*Math.sin(a));}
+      ctx.closePath(); ctx.fill();
+    });
+  } else if (code === 'xo') {
+    // Océanie fictive : teal + 3 vagues blanches + soleil creux doré
+    ctx.fillStyle = '#005F73'; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = h*0.065; ctx.lineCap = 'round';
+    for(let i=0;i<3;i++){const wy=y+h*(0.35+i*0.22);ctx.beginPath();ctx.moveTo(x+w*0.3,wy);ctx.quadraticCurveTo(x+w*0.5,wy-h*0.07,x+w*0.7,wy);ctx.stroke();}
+    ctx.fillStyle = '#EFB700';
+    ctx.beginPath(); ctx.arc(x+w*0.21,y+h*0.24,h*0.17,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#005F73';
+    ctx.beginPath(); ctx.arc(x+w*0.21,y+h*0.24,h*0.09,0,Math.PI*2); ctx.fill();
+  } else if (code === 'xf') {
+    // Afrique fictive : noir / rouge / vert + étoile or 5 branches
+    ctx.fillStyle = '#000000'; ctx.fillRect(x,y,w,h/3);
+    ctx.fillStyle = '#CC0000'; ctx.fillRect(x,y+h/3,w,h/3);
+    ctx.fillStyle = '#007A00'; ctx.fillRect(x,y+h*2/3,w,h/3);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=(i%2===0)?h*0.22:h*0.09;if(i===0)ctx.moveTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));else ctx.lineTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+  } else if (code === 'xg') {
+    // Arctique fictif : bleu glacier + bande foncée + flocon blanc
+    ctx.fillStyle = '#BCEAF5'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#2667A8'; ctx.fillRect(x,y+h*0.72,w,h*0.28);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = h*0.055; ctx.lineCap = 'round';
+    const fcx=x+w/2,fcy=y+h*0.41,fl=h*0.23;
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      ctx.beginPath(); ctx.moveTo(fcx,fcy); ctx.lineTo(fcx+fl*Math.cos(a),fcy+fl*Math.sin(a)); ctx.stroke();
+      ctx.lineWidth=h*0.038;
+      const mx=fcx+fl*0.52*Math.cos(a),my=fcy+fl*0.52*Math.sin(a);
+      ctx.beginPath(); ctx.moveTo(mx-fl*0.16*Math.cos(a+Math.PI/2),my-fl*0.16*Math.sin(a+Math.PI/2)); ctx.lineTo(mx+fl*0.16*Math.cos(a+Math.PI/2),my+fl*0.16*Math.sin(a+Math.PI/2)); ctx.stroke();
+      ctx.lineWidth=h*0.055;
+    }
+  } else if (code === 'xi') {
+    // Asie fictive : indigo + soleil doré 8 rayons
+    ctx.fillStyle = '#1A0050'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    for(let i=0;i<16;i++){const a=i*Math.PI/8,r=(i%2===0)?h*0.34:h*0.16;if(i===0)ctx.moveTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));else ctx.lineTo(x+w/2+r*Math.cos(a),y+h/2+r*Math.sin(a));}
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1A0050';
+    ctx.beginPath(); ctx.arc(x+w/2,y+h/2,h*0.11,0,Math.PI*2); ctx.fill();
+  } else if (code === 'xe') {
+    // Europe fictive : teal + bande sombre + 5 étoiles blanches en cercle
+    ctx.fillStyle = '#006B6B'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#003D3D'; ctx.fillRect(x,y+h*0.78,w,h*0.22);
+    ctx.fillStyle = '#FFFFFF';
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2+i*2*Math.PI/5,ex=x+w/2+h*0.28*Math.cos(a),ey=y+h*0.44+h*0.28*Math.sin(a);
+      ctx.beginPath();
+      for(let j=0;j<10;j++){const sa=-Math.PI/2+j*Math.PI/5,r=(j%2===0)?h*0.1:h*0.04;if(j===0)ctx.moveTo(ex+r*Math.cos(sa),ey+r*Math.sin(sa));else ctx.lineTo(ex+r*Math.cos(sa),ey+r*Math.sin(sa));}
+      ctx.closePath(); ctx.fill();
+    }
+  } else {
+    // Neutral gray
+    ctx.fillStyle = '#999';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#666';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', x + w / 2, y + h / 2);
+  }
+
+  // Border for flag
+  ctx.restore();
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.1); // cap dt at 100ms
+  lastTime = timestamp;
+
+  // Décrémenter le timer du glow d'intro (Phase 2)
+  if (introGlowTimer > 0) introGlowTimer -= dt;
+
+  if (gameState === 'playing') {
+    updateSpawn(dt);
+    updateTransfers(dt);
+    updateTransferCombat();
+    updateImpactEffects(dt);
+    updateConquestAnims(dt);
+    updateAI(dt);
+    updateLevelTelemetrySnapshot();
+    checkWinLose();
+  }
+  // Keep animating conquest effects even after win/lose/pause
+  if (gameState !== 'playing') {
+    updateConquestAnims(dt);
+    updateImpactEffects(dt);
+  }
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// START
+// ============================================================
+window.addEventListener('load', init);
+</script>
+
+</body>
+</html>
