@@ -1388,7 +1388,19 @@ window.addEventListener('unhandledrejection', function(e) {
 </script>
 <script src="i18n.js"></script>
 <script src="levels.js"></script>
-<script src="wytopia-sdk/wytopia-sdk.js"></script>
+<script>
+// Wytopia SDK stub — standalone mode (no platform required)
+class WytopiaSDK {
+  constructor(opts) { this._cb = null; }
+  getStartLevel() {
+    var p = new URLSearchParams(window.location.search);
+    var n = parseInt(p.get('level'), 10);
+    return isNaN(n) ? 1 : n;
+  }
+  onGameCompleted(cb) { this._cb = cb; }
+  levelComplete(level, data) { return Promise.resolve({ level: level + 1 }); }
+}
+</script>
 <script>
 // ============================================================
 // CONFIGURATION
