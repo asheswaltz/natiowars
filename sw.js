@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nation-wars-v1';
+const CACHE_NAME = 'nation-wars-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
