@@ -4,13 +4,28 @@
   "short_name": "Nation Wars",
   "description": "Jeu de strategie tactile pour conquerir le monde.",
   "lang": "fr",
+  "dir": "ltr",
   "start_url": "/natiowars/",
   "scope": "/natiowars/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "landscape",
   "background_color": "#0d1b2a",
   "theme_color": "#0d1b2a",
+  "prefer_related_applications": false,
   "categories": ["games", "education"],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "shortcuts": [
+    {
+      "name": "Jouer",
+      "short_name": "Jouer",
+      "description": "Lancer une partie",
+      "url": "/natiowars/",
+      "icons": [{ "src": "/natiowars/img/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/natiowars/img/app-icon.svg",
