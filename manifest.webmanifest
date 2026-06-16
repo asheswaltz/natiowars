@@ -8,15 +8,11 @@
   "start_url": "/natiowars/",
   "scope": "/natiowars/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "landscape",
   "background_color": "#0d1b2a",
   "theme_color": "#0d1b2a",
   "prefer_related_applications": false,
   "categories": ["games", "education"],
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
   "shortcuts": [
     {
       "name": "Jouer",
