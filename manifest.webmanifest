@@ -60,7 +60,28 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Ecran de jeu"
+      "label": "Ecran de jeu principal"
+    },
+    {
+      "src": "/natiowars/img/screenshot2.png",
+      "sizes": "2432x1345",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Conquête de territoires"
+    },
+    {
+      "src": "/natiowars/img/screenshot3.png",
+      "sizes": "1977x1264",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Stratégie et progression"
+    },
+    {
+      "src": "/natiowars/img/screenshot4.png",
+      "sizes": "1243x1071",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Interface de jeu"
     }
   ]
 }
