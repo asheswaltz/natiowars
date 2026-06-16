@@ -434,30 +434,12 @@
     letter-spacing: 0.02em;
     display: flex; align-items: center; justify-content: center; gap: 7px;
   }
-  .btn-donate-paypal {
-    background: linear-gradient(135deg, #003087, #009cde);
-    box-shadow: 0 4px 16px rgba(0,48,135,0.45);
+  .btn-donate-kofi {
+    background: linear-gradient(135deg, #ff5e5b, #ff8c42);
+    box-shadow: 0 4px 16px rgba(255,94,91,0.45);
   }
-  .btn-donate-paypal:hover { transform: scale(1.03); box-shadow: 0 6px 22px rgba(0,156,222,0.5); }
-  .btn-donate-paypal:active { transform: scale(0.97); }
-  .btn-donate-gpay {
-    background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    border: 1.5px solid rgba(255,255,255,0.12);
-  }
-  .btn-donate-gpay:hover { transform: scale(1.03); box-shadow: 0 6px 22px rgba(0,0,0,0.6); }
-  .btn-donate-gpay:active { transform: scale(0.97); }
-  .btn-donate-apay {
-    background: linear-gradient(135deg, #111, #333);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    border: 1.5px solid rgba(255,255,255,0.18);
-  }
-  .btn-donate-apay:hover { transform: scale(1.03); box-shadow: 0 6px 22px rgba(0,0,0,0.6); }
-  .btn-donate-apay:active { transform: scale(0.97); }
-  .gpay-logo {
-    display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 900;
-  }
-  .gpay-logo span:first-child { color: #4285f4; }
+  .btn-donate-kofi:hover { transform: scale(1.03); box-shadow: 0 6px 22px rgba(255,94,91,0.6); }
+  .btn-donate-kofi:active { transform: scale(0.97); }
   .gpay-logo span:nth-child(2) { color: #ea4335; }
   .gpay-logo span:nth-child(3) { color: #fbbc05; }
   .gpay-logo span:nth-child(4) { color: #34a853; }
@@ -517,6 +499,35 @@
     margin-bottom: 14px;
     display: flex; align-items: center; gap: 8px;
   }
+  .btn-previsions {
+    width: 100%; margin-top: 18px; padding: 11px 16px;
+    background: linear-gradient(135deg, #1a1a4e, #2d2d7e);
+    border: 1.5px solid rgba(130,100,255,0.4);
+    border-radius: 12px; color: #c8b8ff; font-size: 14px; font-weight: 700;
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .btn-previsions:hover { background: linear-gradient(135deg, #222270, #3a3a9e); box-shadow: 0 4px 16px rgba(130,100,255,0.3); }
+  .previsions-panel {
+    display: none; margin-top: 10px; padding: 14px 16px;
+    background: rgba(130,100,255,0.07); border: 1px solid rgba(130,100,255,0.2);
+    border-radius: 12px;
+  }
+  .previsions-panel.show { display: block; }
+  .previsions-panel ul {
+    margin: 0; padding-left: 0; list-style: none;
+  }
+  .previsions-panel li {
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 13px; color: rgba(255,255,255,0.75); display: flex; gap: 10px; align-items: flex-start;
+  }
+  .previsions-panel li:last-child { border-bottom: none; }
+  .previsions-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+  }
+  .badge-soon { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.35); }
+  .badge-next { background: rgba(241,196,15,0.2); color: #f1c40f; border: 1px solid rgba(241,196,15,0.35); }
   .ranking-row {
     display: flex; align-items: center; gap: 12px;
     padding: 11px 14px;
@@ -1336,9 +1347,7 @@
       <p>Nation Wars est 100&nbsp;% libre : pas de pubs, pas de paiement caché, pas de données revendues. Si le jeu vous plaît, vous pouvez soutenir son développement avec un petit don — mais c'est totalement facultatif !</p>
       <p>💡 Chaque euro va directement au développement de nouveaux niveaux et à l'amélioration du jeu.</p>
       <div class="donate-btns">
-        <button class="btn-donate btn-donate-paypal" onclick="openDonatePaypal()">🅿 PayPal</button>
-        <button class="btn-donate btn-donate-gpay" onclick="openDonateGpay()"><span class="gpay-logo"><span>G</span><span>o</span><span>o</span><span>g</span></span>&nbsp;Pay / Carte</button>
-        <button class="btn-donate btn-donate-apay" onclick="openDonateApay()"> Apple Pay</button>
+        <button class="btn-donate btn-donate-kofi" onclick="openDonateKofi()">☕ Ko-fi</button>
       </div>
     </div>
 
@@ -1359,6 +1368,25 @@
     <!-- Ranking -->
     <div class="classement-ranking-title">🥇 Top 10 Donateurs</div>
     <div id="ranking-list"><div class="classement-loading">Chargement…</div></div>
+
+    <!-- Prévisions -->
+    <button class="btn-previsions" onclick="togglePrevisions()">
+      <span>🔮</span>
+      <span>Prévisions — Prochaines mises à jour</span>
+      <span id="previsions-arrow" style="margin-left:auto">▼</span>
+    </button>
+    <div class="previsions-panel" id="previsions-panel">
+      <ul>
+        <li>
+          <span class="previsions-badge badge-next">Prochaine MàJ</span>
+          <span>🗺️ <strong style="color:#fff">Éditeur de niveaux</strong> — Crée et partage tes propres cartes directement dans le jeu !</span>
+        </li>
+        <li>
+          <span class="previsions-badge badge-next">Prochaine MàJ</span>
+          <span>🏆 <strong style="color:#fff">Classement mondial par niveaux</strong> — Les meilleurs temps seront affichés avec les pseudos pour chaque niveau.</span>
+        </li>
+      </ul>
+    </div>
   </div>
 </div>
 
@@ -2497,8 +2525,7 @@ function requestFullscreenOnce() {
 //      → Products → Payment Links → copiez l'URL ici
 var JSONBIN_BIN_ID  = '';          // ex: '6643abc123def456'
 var JSONBIN_API_KEY = '';          // ex: '$2a$10$xxxx...'
-var KOFI_URL        = 'https://ko-fi.com/votrepage';      // ← Ko-fi / PayPal
-var STRIPE_URL      = 'https://buy.stripe.com/votrepage'; // ← Stripe / Google Pay
+var KOFI_URL        = 'https://ko-fi.com/asheswaltz';
 
 // ── Ouvrir / Fermer ──
 function showClassement() {
@@ -2521,9 +2548,14 @@ function _openDonateCommon(url) {
   document.getElementById('cl-msg').textContent = '';
   document.getElementById('cl-msg').className = 'classement-form-msg';
 }
-function openDonatePaypal() { _openDonateCommon(KOFI_URL); }
-function openDonateGpay()   { _openDonateCommon(STRIPE_URL); }
-function openDonateApay()   { _openDonateCommon(STRIPE_URL); } // Stripe active Apple Pay auto sur Safari/iOS
+function openDonateKofi()   { _openDonateCommon(KOFI_URL); }
+
+function togglePrevisions() {
+  var panel = document.getElementById('previsions-panel');
+  var arrow = document.getElementById('previsions-arrow');
+  var open = panel.classList.toggle('show');
+  arrow.textContent = open ? '▲' : '▼';
+}
 
 // ── Soumettre un don (pseudo + montant) ──
 function claimDonation() {
