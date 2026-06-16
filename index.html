@@ -528,6 +528,35 @@
   }
   .badge-soon { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.35); }
   .badge-next { background: rgba(241,196,15,0.2); color: #f1c40f; border: 1px solid rgba(241,196,15,0.35); }
+  .btn-feedback {
+    width: 100%; margin-top: 10px; padding: 11px 16px;
+    background: linear-gradient(135deg, #1a3a2a, #1e5c3a);
+    border: 1.5px solid rgba(46,204,113,0.35);
+    border-radius: 12px; color: #7fffb8; font-size: 14px; font-weight: 700;
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .btn-feedback:hover { background: linear-gradient(135deg, #1e4a32, #256b45); box-shadow: 0 4px 16px rgba(46,204,113,0.25); }
+  .feedback-panel {
+    display: none; margin-top: 10px; padding: 14px 16px;
+    background: rgba(46,204,113,0.06); border: 1px solid rgba(46,204,113,0.2);
+    border-radius: 12px;
+  }
+  .feedback-panel.show { display: block; }
+  .feedback-panel p { font-size: 13px; color: rgba(255,255,255,0.75); margin: 0 0 12px; line-height: 1.6; }
+  .feedback-links { display: flex; flex-direction: column; gap: 8px; }
+  .feedback-link {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600;
+    transition: filter 0.15s;
+  }
+  .feedback-link:hover { filter: brightness(1.15); }
+  .feedback-link-ideas {
+    background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.3); color: #74c6ff;
+  }
+  .feedback-link-gplay {
+    background: rgba(234,67,53,0.12); border: 1px solid rgba(234,67,53,0.3); color: #ff8a80;
+  }
   .ranking-row {
     display: flex; align-items: center; gap: 12px;
     padding: 11px 14px;
@@ -1387,10 +1416,26 @@
         </li>
       </ul>
     </div>
+
+    <!-- Avis -->
+    <button class="btn-feedback" onclick="toggleFeedback()">
+      <span>💬</span>
+      <span>Donner votre avis au développeur</span>
+      <span id="feedback-arrow" style="margin-left:auto">▼</span>
+    </button>
+    <div class="feedback-panel" id="feedback-panel">
+      <p>Vous avez des idées, des suggestions ou vous voulez juste dire ce que vous pensez du jeu ? N'hésitez pas ! Chaque retour compte pour améliorer Nation Wars. 🙏</p>
+      <div class="feedback-links">
+        <a class="feedback-link feedback-link-ideas" href="https://github.com/asheswaltz/natiowars/issues" target="_blank" rel="noopener noreferrer">
+          <span>💡</span><span>Proposer une idée ou signaler un bug sur GitHub</span>
+        </a>
+        <a class="feedback-link feedback-link-gplay" id="feedback-gplay-link" href="#" target="_blank" rel="noopener noreferrer">
+          <span>⭐</span><span>Laisser un avis &amp; des étoiles sur Google Play</span>
+        </a>
+      </div>
+    </div>
   </div>
 </div>
-
-<div id="end-screen">
   <h1 id="end-title"></h1>
   <div id="kids-stars"></div>
   <div id="kids-victory-phrase"></div>
@@ -2526,6 +2571,7 @@ function requestFullscreenOnce() {
 var JSONBIN_BIN_ID  = '';          // ex: '6643abc123def456'
 var JSONBIN_API_KEY = '';          // ex: '$2a$10$xxxx...'
 var KOFI_URL        = 'https://ko-fi.com/asheswaltz';
+var GOOGLE_PLAY_URL = ''; // ← à remplir quand l'appli sera publiée sur Google Play
 
 // ── Ouvrir / Fermer ──
 function showClassement() {
@@ -2555,6 +2601,23 @@ function togglePrevisions() {
   var arrow = document.getElementById('previsions-arrow');
   var open = panel.classList.toggle('show');
   arrow.textContent = open ? '▲' : '▼';
+}
+
+function toggleFeedback() {
+  var panel = document.getElementById('feedback-panel');
+  var arrow = document.getElementById('feedback-arrow');
+  var open = panel.classList.toggle('show');
+  arrow.textContent = open ? '▲' : '▼';
+  // Met à jour le lien Google Play dynamiquement
+  var gplayLink = document.getElementById('feedback-gplay-link');
+  if (GOOGLE_PLAY_URL) {
+    gplayLink.href = GOOGLE_PLAY_URL;
+    gplayLink.style.opacity = '1';
+  } else {
+    gplayLink.href = '#';
+    gplayLink.style.opacity = '0.45';
+    gplayLink.title = 'Disponible bientôt sur Google Play !';
+  }
 }
 
 // ── Soumettre un don (pseudo + montant) ──
